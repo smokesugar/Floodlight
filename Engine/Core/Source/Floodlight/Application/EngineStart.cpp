@@ -4,10 +4,12 @@
 #include "Window.h"
 #include "Floodlight/Utilities/Keywords.h"
 #include "Floodlight/Input/ApplicationInput.h"
+#include "Floodlight/Input/MouseInput.h"
+#include "Floodlight/Input/KeyboardInput.h"
 
 namespace Floodlight {
 
-	internal HWND
+	confined HWND
 	InitializeWindow()
 	{
 		WindowDesc Desc = {};
@@ -15,6 +17,14 @@ namespace Floodlight {
 		Desc.Height = 720;
 		Desc.Title = "Floodlight Engine";
 		return CreateWin32Window(Desc);
+	}
+
+	confined void
+	ResetAllEvents()
+	{
+		ResetKeyboardEvents();
+		ResetMouseEvents();
+		ResetApplicationEvents();
 	}
 
 	void
@@ -30,7 +40,10 @@ namespace Floodlight {
 
 		while (!WasWindowClosed())
 		{
+			// Call the client's tick method
 			Instance->Tick();
+			// Reset and collect all events
+			ResetAllEvents();
 			PollWin32Events();
 		}
 

@@ -2,4 +2,4 @@
 
 #define global_var static
 #define persist static
-#define internal static
+#define confined static

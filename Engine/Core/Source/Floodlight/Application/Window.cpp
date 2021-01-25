@@ -3,20 +3,73 @@
 #include "Floodlight/Utilities/Assert.h"
 #include "Floodlight/Utilities/Keywords.h"
 #include "Floodlight/Input/ApplicationInput.h"
+#include "Floodlight/Input/MouseInput.h"
+#include "Floodlight/Input/KeyboardInput.h"
 
 namespace Floodlight {
 
 	/// <summary>
 	/// Handles window messages and posts events.
 	/// </summary>
-	internal LRESULT CALLBACK
+	confined LRESULT CALLBACK
 	WindowProc(HWND window, UINT Msg, WPARAM WParam, LPARAM LParam)
 	{
 		// Deal with the messages that we care about
 		switch (Msg)
 		{
+		// Window Closed
 		case WM_CLOSE: {
 			SubmitWindowClosed();
+		} break;
+
+		// Window Resized
+		case WM_SIZE: {
+			WindowResizeDimensions Resize;
+			Resize.Width = LOWORD(LParam);
+			Resize.Height = HIWORD(LParam);
+			SubmitWindowResized(Resize);
+		} break;
+
+		// Mouse moved
+		case WM_MOUSEMOVE: {
+			POINTS Pos = MAKEPOINTS(LParam);
+			SubmitMouseMoved({ (uint32)Pos.x, (uint32)Pos.y });
+		} break;
+
+		// Mouse button pressed
+		case WM_LBUTTONDOWN: {
+			SubmitMouseButtonPressed(MouseButton::LBUTTON);
+		} break;
+		case WM_MBUTTONDOWN: {
+			SubmitMouseButtonPressed(MouseButton::MBUTTON);
+		} break;
+		case WM_RBUTTONDOWN: {
+			SubmitMouseButtonPressed(MouseButton::RBUTTON);
+		} break;
+
+		// Mouse button released
+		case WM_LBUTTONUP: {
+			SubmitMouseButtonReleased(MouseButton::LBUTTON);
+		} break;
+		case WM_MBUTTONUP: {
+			SubmitMouseButtonReleased(MouseButton::MBUTTON);
+		} break;
+		case WM_RBUTTONUP: {
+			SubmitMouseButtonReleased(MouseButton::RBUTTON);
+		} break;
+
+		// Key Pressed
+		case WM_SYSKEYDOWN:
+		case WM_KEYDOWN: {
+			Key K = (Key)WParam;
+			SubmitKeyPressed(K);
+		} break;
+		
+		// Key Released
+		case WM_SYSKEYUP:
+		case WM_KEYUP: {
+			Key K = (Key)WParam;
+			SubmitKeyReleased(K);
 		} break;
 		}
 
@@ -27,7 +80,7 @@ namespace Floodlight {
 	/// <summary>
 	/// Calculates actual window dimensions based on client dimensions.
 	/// </summary>
-	internal void
+	confined void
 	GetWindowDimensions(uint32 ClientW, uint32 ClientH, DWORD Styles, uint32* OutW, uint32* OutH)
 	{
 		RECT WindowRect;

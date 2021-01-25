@@ -6,7 +6,7 @@
 
 namespace Floodlight {
 
-	internal std::shared_ptr<spdlog::logger> Logger;
+	confined std::shared_ptr<spdlog::logger> Logger;
 
 	void
 	DebugLog::Init()
