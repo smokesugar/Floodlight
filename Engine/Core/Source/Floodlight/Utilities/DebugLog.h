@@ -22,5 +22,5 @@ namespace Floodlight {
 #define FL_Info(...)      ::Floodlight::DebugLog::GetLogger()->info(__VA_ARGS__);
 #define FL_Warn(...)      ::Floodlight::DebugLog::GetLogger()->warn(__VA_ARGS__);
 #define FL_Error(...)     ::Floodlight::DebugLog::GetLogger()->error(__VA_ARGS__);
-#define FL_Critical(...)  ::Floodlight::DebugLog::GetLogger()->critical(__VA_ARGS__);
+#define FL_Fatal(...)  ::Floodlight::DebugLog::GetLogger()->critical(__VA_ARGS__);
 #endif
