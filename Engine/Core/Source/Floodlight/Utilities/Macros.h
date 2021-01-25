@@ -1,5 +1,5 @@
 #pragma once
 
-#define global static
+#define global_var static
 #define persist static
 #define internal static

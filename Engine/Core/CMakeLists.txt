@@ -4,7 +4,7 @@ include(${CMAKE_SOURCE_DIR}/../Scripts/CMakeUtilities.txt)
 
 project(Core)
 
-set(INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/Source)
+set(INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/Source ${CMAKE_SOURCE_DIR}/Dependencies/spdlog/include)
 set(LINK_LIBS dxgi.lib)
 
 file(GLOB_RECURSE SOURCE_FILES Source/*.cpp Source/*.h)

@@ -4,7 +4,7 @@ include(${CMAKE_SOURCE_DIR}/../Scripts/CMakeUtilities.txt)
 
 project(Runtime)
 
-set(INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/Core/Source)
+set(INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/Core/Source ${CMAKE_SOURCE_DIR}/Dependencies/spdlog/include)
 set(LINK_LIBS Core)
 
 file(GLOB_RECURSE SOURCE_FILES Source/*.cpp Source/*.h)

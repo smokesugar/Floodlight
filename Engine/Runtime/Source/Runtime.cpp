@@ -1,22 +1,26 @@
 #include "Runtime.h"
 
-#include <iostream>
+#include "Floodlight/Utilities/DebugLog.h"
 
 namespace Floodlight {
 
 	Runtime::Runtime()
 	{
-		std::cout << "Ctor" << std::endl;
+		FL_Trace("Hello World!");
+		FL_Info("Hello World!");
+		FL_Warn("Hello World!");
+		FL_Error("Hello World!");
+		FL_Critical("Hello World!");
 	}
 
 	Runtime::~Runtime()
 	{
-		std::cout << "Dtor" << std::endl;
+		FL_Trace("Goodbye World!");
 	}
 
 	void Runtime::Tick()
 	{
-		std::cout << "Tick" << std::endl;
+		FL_Trace("Tick!");
 	}
 
 }
