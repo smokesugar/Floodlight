@@ -5,14 +5,15 @@
 #include "Floodlight/Input/ApplicationInput.h"
 #include "Floodlight/Input/MouseInput.h"
 #include "Floodlight/Input/KeyboardInput.h"
+#include "Floodlight/Renderer/D3D/D3DContext.h"
 
 namespace Floodlight {
 
-	/// <summary>
-	/// Handles window messages and posts events.
-	/// </summary>
+	/*
+		Handles window messages and posts events.
+	*/
 	confined LRESULT CALLBACK
-	WindowProc(HWND window, UINT Msg, WPARAM WParam, LPARAM LParam)
+	WindowProc(HWND Window, UINT Msg, WPARAM WParam, LPARAM LParam)
 	{
 		// Deal with the messages that we care about
 		switch (Msg)
@@ -28,6 +29,9 @@ namespace Floodlight {
 			Resize.Width = LOWORD(LParam);
 			Resize.Height = HIWORD(LParam);
 			SubmitWindowResized(Resize);
+			SetWindowLongPtr(Window, GWLP_USERDATA, (LONG_PTR)LParam);
+			if (D3DContext::IsInitialized())
+				D3DContext::ResizeSwapChain(Resize.Width, Resize.Height);
 		} break;
 
 		// Mouse moved
@@ -74,12 +78,12 @@ namespace Floodlight {
 		}
 
 		// Let window handle everything else
-		return DefWindowProc(window, Msg, WParam, LParam);
+		return DefWindowProc(Window, Msg, WParam, LParam);
 	}
 
-	/// <summary>
-	/// Calculates actual window dimensions based on client dimensions.
-	/// </summary>
+	/*
+		Calculates actual window dimensions based on client dimensions.
+	*/
 	confined void
 	GetWindowDimensions(uint32 ClientW, uint32 ClientH, DWORD Styles, uint32* OutW, uint32* OutH)
 	{
@@ -94,9 +98,9 @@ namespace Floodlight {
 		*OutH = WindowRect.bottom - WindowRect.top;
 	}
 
-	/// <summary>
-	/// Creates a win32 window based on a descriptor.
-	/// </summary>
+	/*
+		Creates a win32 window based on a descriptor.
+	*/
 	HWND
 	CreateWin32Window(WindowDesc Desc)
 	{
@@ -130,9 +134,9 @@ namespace Floodlight {
 		return Window;
 	}
 
-	/// <summary>
-	/// Flushes win32 message queue.
-	/// </summary>
+	/*
+		Flushes win32 message queue.
+	*/
 	void
 	PollWin32Events()
 	{

@@ -6,19 +6,18 @@
 
 namespace Floodlight {
 
-	confined std::shared_ptr<spdlog::logger> Logger;
-
 	void
 	DebugLog::Init()
 	{
 		spdlog::set_pattern("%^[%T] %n: %v%$");
-		Logger = spdlog::stdout_color_mt("Floodlight");
-		Logger->set_level(spdlog::level::trace);
+		GetLogger() = spdlog::stdout_color_mt("Floodlight");
+		GetLogger()->set_level(spdlog::level::trace);
 	}
 
 	std::shared_ptr<spdlog::logger>&
 	DebugLog::GetLogger()
 	{
+		persist std::shared_ptr<spdlog::logger> Logger;
 		return Logger;
 	}
 
