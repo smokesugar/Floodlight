@@ -78,7 +78,7 @@ namespace Floodlight {
 	void
 	BindVertexBuffer(const VertexBuffer* Buffer)
 	{
-		D3DContext::GetCommandList()->IASetVertexBuffers(0, 1, &Buffer->GetView());
+		D3DContext::GetCommandList().Get()->IASetVertexBuffers(0, 1, &Buffer->GetView());
 	}
 
 }

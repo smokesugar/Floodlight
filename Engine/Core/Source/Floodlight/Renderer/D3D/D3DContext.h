@@ -6,6 +6,8 @@
 #include "Floodlight/Utilities/IntTypes.h"
 #include "Floodlight/Utilities/Assert.h"
 
+#include "CommandList.h"
+
 #define cbuffer struct
 
 namespace Floodlight {
@@ -15,6 +17,11 @@ namespace Floodlight {
 	uint32 PadConstantBufferSize(uint32 Size);
 
 	namespace D3DContext {
+
+		/*
+			Constants
+		*/
+		constexpr uint32 SwapChainBufferCount = 2;
 
 		/*
 			Lifetime Controls
@@ -35,7 +42,7 @@ namespace Floodlight {
 			Accessors
 		*/
 		ID3D12Device*& GetDevice();
-		ID3D12GraphicsCommandList*& GetCommandList();
+		CommandList& GetCommandList();
 		
 	}
 

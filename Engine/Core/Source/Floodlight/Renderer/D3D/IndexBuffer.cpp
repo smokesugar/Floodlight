@@ -79,7 +79,7 @@ namespace Floodlight {
 	void
 	BindIndexBuffer(const IndexBuffer* Buffer)
 	{
-		D3DContext::GetCommandList()->IASetIndexBuffer(&Buffer->GetView());
+		D3DContext::GetCommandList().Get()->IASetIndexBuffer(&Buffer->GetView());
 	}
 
 }

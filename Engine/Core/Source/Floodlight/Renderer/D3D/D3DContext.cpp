@@ -12,11 +12,6 @@
 namespace Floodlight {
 
 	/*
-		Private constants.
-	*/
-	constexpr uint32 SwapChainBufferCount = 2;
-
-	/*
 		In debug mode, break on failure.
 	*/
 	void
@@ -48,13 +43,6 @@ namespace Floodlight {
 		Private accessors.
 	*/
 
-	confined uint64&
-	GetCurrentFenceValue()
-	{
-		persist uint64 Value = 0;
-		return Value;
-	}
-
 	confined ID3D12Fence*&
 	GetFence()
 	{
@@ -62,18 +50,11 @@ namespace Floodlight {
 		return Fence;
 	}
 
-	confined ID3D12CommandQueue*&
-	GetCommandQueue()
+	confined uint32&
+	GetFenceValue()
 	{
-		persist ID3D12CommandQueue* Queue = nullptr;
-		return Queue;
-	}
-
-	confined ID3D12CommandAllocator*&
-	GetCommandAllocator()
-	{
-		persist ID3D12CommandAllocator* Allocator = nullptr;
-		return Allocator;
+		persist uint32 Val = 0;
+		return Val;
 	}
 
 	confined IDXGISwapChain3*&
@@ -86,8 +67,8 @@ namespace Floodlight {
 	confined ID3D12Resource*&
 	GetSwapChainBuffer(uint32 Index)
 	{
-		persist ID3D12Resource* Buffers[SwapChainBufferCount];
-		FL_Assert(Index < SwapChainBufferCount, "Index out of bounds.");
+		persist ID3D12Resource* Buffers[D3DContext::SwapChainBufferCount];
+		FL_Assert(Index < D3DContext::SwapChainBufferCount, "Index out of bounds.");
 		return Buffers[Index];
 	}
 
@@ -111,6 +92,22 @@ namespace Floodlight {
 	}
 
 	/*
+		Stall until a command queue is empty.
+	*/
+	void
+	WaitForCommandQueueToFlush(ID3D12CommandQueue* Queue)
+	{
+		Queue->Signal(GetFence(), ++GetFenceValue());
+		if (GetFence()->GetCompletedValue() < GetFenceValue())
+		{
+			HANDLE EventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
+			GetFence()->SetEventOnCompletion(GetFenceValue(), EventHandle);
+			WaitForSingleObject(EventHandle, INFINITE);
+			CloseHandle(EventHandle);
+		}
+	}
+
+	/*
 		Create the D3D swap-chain
 	*/
 	confined void
@@ -127,14 +124,14 @@ namespace Floodlight {
 		Desc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
 		Desc.SampleDesc = { 1, 0 };
 		Desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		Desc.BufferCount = SwapChainBufferCount;
+		Desc.BufferCount = D3DContext::SwapChainBufferCount;
 		Desc.OutputWindow = Window;
 		Desc.Windowed = true;
 		Desc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 		Desc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
 		IDXGISwapChain* Temp = nullptr;
-		HResultCall(Factory->CreateSwapChain(GetCommandQueue(), &Desc, &Temp));
+		HResultCall(Factory->CreateSwapChain(D3DContext::GetCommandList().GetCommandQueue(), &Desc, &Temp));
 		Temp->QueryInterface(IID_PPV_ARGS(&GetSwapChain()));
 		Temp->Release();
 
@@ -149,7 +146,7 @@ namespace Floodlight {
 	{
 		{ // Create the descriptor heap for the render target views
 			D3D12_DESCRIPTOR_HEAP_DESC Desc = {};
-			Desc.NumDescriptors = SwapChainBufferCount;
+			Desc.NumDescriptors = D3DContext::SwapChainBufferCount;
 			Desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 			Desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 			Desc.NodeMask = 0;
@@ -160,29 +157,12 @@ namespace Floodlight {
 			uint32 DescriptorSize = D3DContext::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 			D3D12_CPU_DESCRIPTOR_HANDLE RTVHeapPtr = GetRTVDescriptorHeap()->GetCPUDescriptorHandleForHeapStart();
 
-			for (uint32 i = 0; i < SwapChainBufferCount; i++)
+			for (uint32 i = 0; i < D3DContext::SwapChainBufferCount; i++)
 			{
 				HResultCall(GetSwapChain()->GetBuffer(i, IID_PPV_ARGS(&GetSwapChainBuffer(i))));
 				D3DContext::GetDevice()->CreateRenderTargetView(GetSwapChainBuffer(i), nullptr, RTVHeapPtr);
 				IncrementDescriptorHandle(&RTVHeapPtr, DescriptorSize);
 			}
-		}
-	}
-
-	/*
-		Flush Command Queue
-	*/
-	confined void
-	FlushCommandQueue()
-	{
-		GetCurrentFenceValue()++;
-		HResultCall(GetCommandQueue()->Signal(GetFence(), GetCurrentFenceValue()));
-		if (GetFence()->GetCompletedValue() < GetCurrentFenceValue())
-		{
-			HANDLE EventHandle = CreateEventEx(nullptr, false, false, EVENT_ALL_ACCESS);
-			HResultCall(GetFence()->SetEventOnCompletion(GetCurrentFenceValue(), EventHandle));
-			WaitForSingleObject(EventHandle, INFINITE);
-			CloseHandle(EventHandle);
 		}
 	}
 
@@ -476,8 +456,6 @@ namespace Floodlight {
 
 			D3DContext::GetDevice()->CreateConstantBufferView(&CBVDesc, GetMVPConstantBufferDescriptorHeap()->GetCPUDescriptorHandleForHeapStart());
 		}
-
-		FlushCommandQueue();
 	}
 
 	/*
@@ -518,40 +496,11 @@ namespace Floodlight {
 		// Enable the info queue
 		EnableInfoQueue();
 
-		{ // Create the D3D fence
-			HResultCall(GetDevice()->CreateFence(
-				0,
-				D3D12_FENCE_FLAG_NONE,
-				IID_PPV_ARGS(&GetFence())
-			));
-		}
+		// Create the fence
+		GetDevice()->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&GetFence()));
 
-		{ // Create the D3D command queue
-			D3D12_COMMAND_QUEUE_DESC Desc = {};
-			Desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-			Desc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-			HResultCall(GetDevice()->CreateCommandQueue(&Desc, IID_PPV_ARGS(&GetCommandQueue())));
-		}
-
-		{ // Create the D3D command allocator
-			HResultCall(GetDevice()->CreateCommandAllocator(
-				D3D12_COMMAND_LIST_TYPE_DIRECT,
-				IID_PPV_ARGS(&GetCommandAllocator())
-			));
-		}
-
-		{ // Create the D3D command list
-			HResultCall(GetDevice()->CreateCommandList(
-				0,
-				D3D12_COMMAND_LIST_TYPE_DIRECT,
-				GetCommandAllocator(),
-				nullptr,
-				IID_PPV_ARGS(&GetCommandList())
-			));
-
-			// We start off closed because we want to reset before we use it.
-			GetCommandList()->Close();
-		}
+		// Create the command list
+		GetCommandList().Init(SwapChainBufferCount);
 
 		{ // Create the D3D swap-chain
 			RECT ClientRect;
@@ -562,9 +511,9 @@ namespace Floodlight {
 			CreateRTVsAndPopulateSwapChainBuffers();
 		}
 
-		FlushCommandQueue();
-
 		InitializeAssets();
+
+		WaitForCommandQueueToFlush(D3DContext::GetCommandList().GetCommandQueue());
 	}
 
 	/*
@@ -573,18 +522,16 @@ namespace Floodlight {
 	void
 	D3DContext::Shutdown()
 	{
-		ReleaseAssets();
+		WaitForCommandQueueToFlush(GetCommandList().GetCommandQueue());
 
-		FlushCommandQueue();
+		ReleaseAssets();
 
 		for (uint32 i = 0; i < SwapChainBufferCount; i++)
 			GetSwapChainBuffer(i)->Release();
 
 		GetRTVDescriptorHeap()->Release();
 		GetSwapChain()->Release();
-		GetCommandList()->Release();
-		GetCommandAllocator()->Release();
-		GetCommandQueue()->Release();
+		GetCommandList().Release();
 		GetFence()->Release();
 		GetDevice()->Release();
 	}
@@ -622,7 +569,7 @@ namespace Floodlight {
 		Viewport.MaxDepth = 1.0f;
 		Viewport.Width = Width;
 		Viewport.Height = Height;
-		GetCommandList()->RSSetViewports(1, &Viewport);
+		GetCommandList().Get()->RSSetViewports(1, &Viewport);
 	}
 
 	/*
@@ -636,7 +583,7 @@ namespace Floodlight {
 		ScissorRect.left = Y;
 		ScissorRect.right = Width + X;
 		ScissorRect.bottom = Height + Y;
-		GetCommandList()->RSSetScissorRects(1, &ScissorRect);
+		GetCommandList().Get()->RSSetScissorRects(1, &ScissorRect);
 	}
 
 	/*
@@ -661,23 +608,20 @@ namespace Floodlight {
 	void
 	D3DContext::Render(uint32 Width, uint32 Height, float Time)
 	{
-		// Reset so command lists for the start of the frame
-		HResultCall(GetCommandAllocator()->Reset());
-		HResultCall(GetCommandList()->Reset(GetCommandAllocator(), nullptr));
-
 		uint32 Frame = GetSwapChain()->GetCurrentBackBufferIndex();
+		GetCommandList().NewFrame(Frame);
 
 		// Barrier - indicate that we are writing to the back buffer
 		D3D12_RESOURCE_BARRIER BarrierToRenderTarget = CreateTransitionBarrier(GetSwapChainBuffer(Frame), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-		GetCommandList()->ResourceBarrier(1, &BarrierToRenderTarget);
+		GetCommandList().Get()->ResourceBarrier(1, &BarrierToRenderTarget);
 
-		GetCommandList()->SetGraphicsRootSignature(GetRootSignature());
-		GetCommandList()->SetPipelineState(GetPipelineState());
+		GetCommandList().Get()->SetGraphicsRootSignature(GetRootSignature());
+		GetCommandList().Get()->SetPipelineState(GetPipelineState());
 
 		auto RTV = GetRTV(Frame);
 		float4 ClearColor(0.6f, 0.2f, 0.6f, 1.0f);
-		GetCommandList()->ClearRenderTargetView(RTV, FloatPtr(ClearColor), 0, nullptr);
-		GetCommandList()->OMSetRenderTargets(1, &RTV, false, nullptr);
+		GetCommandList().Get()->ClearRenderTargetView(RTV, FloatPtr(ClearColor), 0, nullptr);
+		GetCommandList().Get()->OMSetRenderTargets(1, &RTV, false, nullptr);
 		
 		SetViewport(0.0f, 0.0f, (float)Width, (float)Height);
 		SetScissor(0, 0, Width, Height);
@@ -692,28 +636,23 @@ namespace Floodlight {
 		memcpy(MVPData, &MVP, sizeof(MVP));
 		GetMVPConstantBuffer()->Unmap(0, nullptr);
 		
-		GetCommandList()->SetDescriptorHeaps(1, &GetMVPConstantBufferDescriptorHeap());
+		GetCommandList().Get()->SetDescriptorHeaps(1, &GetMVPConstantBufferDescriptorHeap());
 		D3D12_GPU_DESCRIPTOR_HANDLE MVPDescriptorHandle = GetMVPConstantBufferDescriptorHeap()->GetGPUDescriptorHandleForHeapStart();
-		GetCommandList()->SetGraphicsRootDescriptorTable(0, MVPDescriptorHandle);
-		GetCommandList()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		GetCommandList().Get()->SetGraphicsRootDescriptorTable(0, MVPDescriptorHandle);
+		GetCommandList().Get()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		BindVertexBuffer(GetVertexBuffer());
 		BindIndexBuffer(GetIndexBuffer());
-		GetCommandList()->DrawIndexedInstanced(36, 1, 0, 0, 0);
+		GetCommandList().Get()->DrawIndexedInstanced(36, 1, 0, 0, 0);
 
 		// Barrier - indicate that we are presenting the back buffer
 		D3D12_RESOURCE_BARRIER BarrierToPresent = CreateTransitionBarrier(GetSwapChainBuffer(Frame), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-		GetCommandList()->ResourceBarrier(1, &BarrierToPresent);
+		GetCommandList().Get()->ResourceBarrier(1, &BarrierToPresent);
 
 		// Indicate we are finished with recording commands
-		HResultCall(GetCommandList()->Close());
-		ID3D12CommandList* CmdLists[] = { GetCommandList() }; // Execute commands
-		GetCommandQueue()->ExecuteCommandLists(1, CmdLists);
+		GetCommandList().Execute();
 
 		// Present buffer
 		HResultCall(GetSwapChain()->Present(0, 0));
-
-		// Stall until GPU is finished
-		FlushCommandQueue();
 	}
 
 	/*
@@ -727,10 +666,10 @@ namespace Floodlight {
 		return Device;
 	}
 
-	ID3D12GraphicsCommandList*&
+	CommandList&
 	D3DContext::GetCommandList()
 	{
-		persist ID3D12GraphicsCommandList* List = nullptr;
+		persist CommandList List;
 		return List;
 	}
 
