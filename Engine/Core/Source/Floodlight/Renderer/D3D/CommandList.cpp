@@ -31,7 +31,7 @@ namespace Floodlight {
 	void CommandList::Init(uint32 FrameCount)
 	{
 		Count = FrameCount;
-
+		
 		{ // Create the command queue
 			D3D12_COMMAND_QUEUE_DESC Desc = {};
 			Desc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;

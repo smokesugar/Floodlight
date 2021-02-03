@@ -8,36 +8,33 @@
 #include "Floodlight/Utilities/Math.h"
 #include "VertexBuffer.h"
 #include "IndexBuffer.h"
+#include "ConstantBuffer.h"
 
 namespace Floodlight {
 
 	/*
 		In debug mode, break on failure.
 	*/
-	void
-		HResultCall(HRESULT HR)
+	confined void
+	HResultCall(HRESULT HR)
 	{
 		_com_error Err(HR);
-		FL_Assert(SUCCEEDED(HR), "Failed HRESULT function call: {0}", Err.ErrorMessage());
+		FL_Assert(SUCCEEDED(HR), "Failed to compile shader: {0}", Err.ErrorMessage());
 	}
 
 	/*
 		Increment a D3D descriptor handle.
 	*/
 	void
-		IncrementDescriptorHandle(D3D12_CPU_DESCRIPTOR_HANDLE* Handle, int32 Amount)
+	IncrementDescriptorHandle(D3D12_CPU_DESCRIPTOR_HANDLE* Handle, int32 Amount)
 	{
 		Handle->ptr = SIZE_T(INT64(Handle->ptr) + INT64(Amount)); // Increment pointer
 	}
-
-	/*
-		Pad constant buffer sizes to 256 boundaries.
-	*/
-	uint32
-	PadConstantBufferSize(uint32 Size)
-	{
-		return (Size + 255) & ~255;
-	}
+    void
+	IncrementDescriptorHandle(D3D12_GPU_DESCRIPTOR_HANDLE* Handle, int32 Amount)
+    {
+		Handle->ptr = UINT64(INT64(Handle->ptr) + INT64(Amount)); // Increment pointer
+    }
 
 	/*
 		Private accessors.
@@ -231,18 +228,18 @@ namespace Floodlight {
 		return IB;
 	}
 
-	confined ID3D12Resource*&
+	confined ConstantBuffer*&
 	GetMVPConstantBuffer()
 	{
-		persist ID3D12Resource* CB = nullptr;
+		persist ConstantBuffer* CB = nullptr;
 		return CB;
 	}
 
-	confined ID3D12DescriptorHeap*&
-	GetMVPConstantBufferDescriptorHeap()
+	confined ConstantBuffer*&
+	GetTestConstantBuffer()
 	{
-		persist ID3D12DescriptorHeap* Heap = nullptr;
-		return Heap;
+		persist ConstantBuffer* CB = nullptr;
+		return CB;
 	}
 
 	confined ID3DBlob*
@@ -256,14 +253,15 @@ namespace Floodlight {
 
 		ID3DBlob* ShaderBlob = nullptr;
 		ID3DBlob* ErrorBlob = nullptr;
-		HRESULT hr = D3DCompileFromFile(File, nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint, Profile, 0, 0, &ShaderBlob, &ErrorBlob);
+		HRESULT HR = D3DCompileFromFile(File, nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint, Profile, 0, 0, &ShaderBlob, &ErrorBlob);
 
-		if (FAILED(hr)) {
+		if (FAILED(HR)) {
 			if (ErrorBlob) {
 				FL_Assert(false, "{0}", (const char*)ErrorBlob->GetBufferPointer());
 			}
 			else {
-				HResultCall(hr);
+				_com_error Err(HR);
+				FL_Assert(false, "Failed to compile shader: {0}", Err.ErrorMessage());
 			}
 		}
 
@@ -272,35 +270,41 @@ namespace Floodlight {
 	}
 
 	/*
-		Constant buffer structure definition
-	*/
-	cbuffer MVPConstants
-	{
-		matrix MVP;
-	};
-
-	/*
 		Create all objects used in drawing
 	*/
 	confined void
 	InitializeAssets()
 	{
 		{ // Create an empty root signature
-			D3D12_DESCRIPTOR_RANGE Range0 = {};
-			Range0.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-			Range0.NumDescriptors = 1;
-			Range0.BaseShaderRegister = 0;
-			Range0.RegisterSpace = 0;
-			Range0.OffsetInDescriptorsFromTableStart = 0;
+			D3D12_DESCRIPTOR_RANGE Ranges[2];
 
-			D3D12_ROOT_PARAMETER Param0 = {};
-			Param0.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-			Param0.DescriptorTable.NumDescriptorRanges = 1;
-			Param0.DescriptorTable.pDescriptorRanges = &Range0;
+			Ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+			Ranges[0].NumDescriptors = 1;
+			Ranges[0].BaseShaderRegister = 0;
+			Ranges[0].RegisterSpace = 0;
+			Ranges[0].OffsetInDescriptorsFromTableStart = 0;
+
+			Ranges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+			Ranges[1].NumDescriptors = 1;
+			Ranges[1].BaseShaderRegister = 1;
+			Ranges[1].RegisterSpace = 0;
+			Ranges[1].OffsetInDescriptorsFromTableStart = 0;
+
+			D3D12_ROOT_PARAMETER Params[2];
+
+			Params[0] = {};
+			Params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			Params[0].DescriptorTable.NumDescriptorRanges = 1;
+			Params[0].DescriptorTable.pDescriptorRanges = &Ranges[0];
+
+			Params[1] = {};
+			Params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			Params[1].DescriptorTable.NumDescriptorRanges = 1;
+			Params[1].DescriptorTable.pDescriptorRanges = &Ranges[1];
 
 			D3D12_ROOT_SIGNATURE_DESC Desc = {};
-			Desc.NumParameters = 1;
-			Desc.pParameters = &Param0;
+			Desc.NumParameters = std::size(Params);
+			Desc.pParameters = Params;
 			Desc.NumStaticSamplers = 0;
 			Desc.pStaticSamplers = nullptr;
 			Desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
@@ -418,43 +422,8 @@ namespace Floodlight {
 		}
 
 		{ // Create MVP constant buffer
-			uint32 SizeBytes = PadConstantBufferSize(sizeof(MVPConstants));
-			uint32 NumElements = 1;
-
-			D3D12_HEAP_PROPERTIES HeapProps = {};
-			HeapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
-			HeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-			HeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-			HeapProps.CreationNodeMask = 1;
-			HeapProps.VisibleNodeMask = 1;
-
-			D3D12_RESOURCE_DESC ResourceDesc = {};
-			ResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-			ResourceDesc.Alignment = 0;
-			ResourceDesc.Width = (uint64)(SizeBytes * NumElements);
-			ResourceDesc.Height = 1;
-			ResourceDesc.DepthOrArraySize = 1;
-			ResourceDesc.MipLevels = 1;
-			ResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
-			ResourceDesc.SampleDesc = { 1, 0 };
-			ResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-			ResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-
-			HResultCall(D3DContext::GetDevice()->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE, &ResourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&GetMVPConstantBuffer())));
-		
-			D3D12_DESCRIPTOR_HEAP_DESC DescriptorHeapDesc = {};
-			DescriptorHeapDesc.NumDescriptors = 1;
-			DescriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-			DescriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-			DescriptorHeapDesc.NodeMask = 0;
-
-			HResultCall(D3DContext::GetDevice()->CreateDescriptorHeap(&DescriptorHeapDesc, IID_PPV_ARGS(&GetMVPConstantBufferDescriptorHeap())));
-
-			D3D12_CONSTANT_BUFFER_VIEW_DESC CBVDesc = {};
-			CBVDesc.BufferLocation = GetMVPConstantBuffer()->GetGPUVirtualAddress();
-			CBVDesc.SizeInBytes = SizeBytes;
-
-			D3DContext::GetDevice()->CreateConstantBufferView(&CBVDesc, GetMVPConstantBufferDescriptorHeap()->GetCPUDescriptorHandleForHeapStart());
+			GetMVPConstantBuffer() = new ConstantBuffer(sizeof(matrix));
+			GetTestConstantBuffer() = new ConstantBuffer(sizeof(matrix));
 		}
 	}
 
@@ -464,8 +433,8 @@ namespace Floodlight {
 	confined void
 	ReleaseAssets()
 	{
-		GetMVPConstantBufferDescriptorHeap()->Release();
-		GetMVPConstantBuffer()->Release();
+		delete GetMVPConstantBuffer();
+		delete GetTestConstantBuffer();
 		delete GetIndexBuffer();
 		delete GetVertexBuffer();
 		GetPipelineState()->Release();
@@ -502,6 +471,9 @@ namespace Floodlight {
 		// Create the command list
 		GetCommandList().Init(SwapChainBufferCount);
 
+		// Create the descriptor heaps
+		GetCBVSRVUAVDescriptorHeap().Init(200);
+
 		{ // Create the D3D swap-chain
 			RECT ClientRect;
 			GetClientRect(Window, &ClientRect);
@@ -532,6 +504,7 @@ namespace Floodlight {
 		GetRTVDescriptorHeap()->Release();
 		GetSwapChain()->Release();
 		GetCommandList().Release();
+		GetCBVSRVUAVDescriptorHeap().Release();
 		GetFence()->Release();
 		GetDevice()->Release();
 	}
@@ -608,43 +581,61 @@ namespace Floodlight {
 	void
 	D3DContext::Render(uint32 Width, uint32 Height, float Time)
 	{
+		/*
+			New frame, new index.
+		*/
 		uint32 Frame = GetSwapChain()->GetCurrentBackBufferIndex();
 		GetCommandList().NewFrame(Frame);
-
-		// Barrier - indicate that we are writing to the back buffer
+		
+		/*
+			Indicate that we are rendering to the render target.
+		*/
 		D3D12_RESOURCE_BARRIER BarrierToRenderTarget = CreateTransitionBarrier(GetSwapChainBuffer(Frame), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		GetCommandList().Get()->ResourceBarrier(1, &BarrierToRenderTarget);
 
+		/*
+			Bind the pipeline state and graphics root signature.
+		*/
 		GetCommandList().Get()->SetGraphicsRootSignature(GetRootSignature());
 		GetCommandList().Get()->SetPipelineState(GetPipelineState());
 
+		/*
+			Set viewports and clear and bind the render target.
+		*/
 		auto RTV = GetRTV(Frame);
 		float4 ClearColor(0.6f, 0.2f, 0.6f, 1.0f);
-		GetCommandList().Get()->ClearRenderTargetView(RTV, FloatPtr(ClearColor), 0, nullptr);
-		GetCommandList().Get()->OMSetRenderTargets(1, &RTV, false, nullptr);
-		
 		SetViewport(0.0f, 0.0f, (float)Width, (float)Height);
 		SetScissor(0, 0, Width, Height);
+		GetCommandList().Get()->ClearRenderTargetView(RTV, FloatPtr(ClearColor), 0, nullptr);
+		GetCommandList().Get()->OMSetRenderTargets(1, &RTV, false, nullptr);
 
-		// Update the MVP constant buffer
+		/*
+			Bind the descriptor heap
+		*/
+		BindDescriptorHeap(&GetCBVSRVUAVDescriptorHeap());
+
+		/*
+			Update the MVP constants and bind the buffer.
+		*/
 		float AspectRatio = (float)Width / (float)Height;
-
-		D3D12_RANGE ReadRange = { 0, 0 };
-		void* MVPData;
-		GetMVPConstantBuffer()->Map(0, &ReadRange, &MVPData);
 		matrix MVP = XMMatrixRotationRollPitchYaw(0.0f, ToRadians(Time * 90.0f), ToRadians(Time * 180.0f)) * XMMatrixTranslation(0.0f, 0.0f, 2.0f) * XMMatrixPerspectiveFovLH(ToRadians(80.0f), AspectRatio, 0.1f, 100.0f);
-		memcpy(MVPData, &MVP, sizeof(MVP));
-		GetMVPConstantBuffer()->Unmap(0, nullptr);
-		
-		GetCommandList().Get()->SetDescriptorHeaps(1, &GetMVPConstantBufferDescriptorHeap());
-		D3D12_GPU_DESCRIPTOR_HANDLE MVPDescriptorHandle = GetMVPConstantBufferDescriptorHeap()->GetGPUDescriptorHandleForHeapStart();
-		GetCommandList().Get()->SetGraphicsRootDescriptorTable(0, MVPDescriptorHandle);
-		GetCommandList().Get()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		GetMVPConstantBuffer()->Update(&MVP, sizeof(MVP));
+		BindConstantBuffer(GetMVPConstantBuffer(), 0);
+		matrix TestOffset = XMMatrixTranslation(sinf(Time), 0.0f, 0.0f);
+		GetTestConstantBuffer()->Update(&TestOffset, sizeof(TestOffset));
+		BindConstantBuffer(GetTestConstantBuffer(), 1);
+
+		/*
+			Bind vertices and draw.
+		*/
 		BindVertexBuffer(GetVertexBuffer());
 		BindIndexBuffer(GetIndexBuffer());
-		GetCommandList().Get()->DrawIndexedInstanced(36, 1, 0, 0, 0);
+		GetCommandList().Get()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		GetCommandList().Get()->DrawIndexedInstanced(GetIndexBuffer()->GetCount(), 1, 0, 0, 0);
 
-		// Barrier - indicate that we are presenting the back buffer
+		/*
+			Indicate that we are presenting the render target.
+		*/
 		D3D12_RESOURCE_BARRIER BarrierToPresent = CreateTransitionBarrier(GetSwapChainBuffer(Frame), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 		GetCommandList().Get()->ResourceBarrier(1, &BarrierToPresent);
 
@@ -672,5 +663,12 @@ namespace Floodlight {
 		persist CommandList List;
 		return List;
 	}
+
+    DescriptorHeap&
+	D3DContext::GetCBVSRVUAVDescriptorHeap()
+    {
+		persist DescriptorHeap Heap;
+		return Heap;
+    }
 
 }

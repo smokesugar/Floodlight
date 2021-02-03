@@ -24,8 +24,11 @@ namespace Floodlight {
 		void Execute();
 
 		inline ID3D12GraphicsCommandList* Get() { return Lists[Frame]; }
-
 		inline ID3D12CommandQueue* GetCommandQueue() const { return CommandQueue; }
+
+		// We should not be able to copy this class.
+		CommandList(const CommandList&) = delete;
+		void operator=(const CommandList&) = delete;
 	private:
 		uint32 Count;
 		uint32 Frame = 0;

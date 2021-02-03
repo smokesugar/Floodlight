@@ -7,13 +7,14 @@
 #include "Floodlight/Utilities/Assert.h"
 
 #include "CommandList.h"
+#include "DescriptorHeap.h"
 
 #define cbuffer struct
 
 namespace Floodlight {
 
-	void HResultCall(HRESULT HR);
 	void IncrementDescriptorHandle(D3D12_CPU_DESCRIPTOR_HANDLE* Handle, int32 Amount);
+	void IncrementDescriptorHandle(D3D12_GPU_DESCRIPTOR_HANDLE* Handle, int32 Amount);
 	uint32 PadConstantBufferSize(uint32 Size);
 
 	namespace D3DContext {
@@ -21,7 +22,7 @@ namespace Floodlight {
 		/*
 			Constants
 		*/
-		constexpr uint32 SwapChainBufferCount = 2;
+		static constexpr uint32 SwapChainBufferCount = 2;
 
 		/*
 			Lifetime Controls
@@ -43,6 +44,7 @@ namespace Floodlight {
 		*/
 		ID3D12Device*& GetDevice();
 		CommandList& GetCommandList();
+		DescriptorHeap& GetCBVSRVUAVDescriptorHeap();
 		
 	}
 
