@@ -12,7 +12,6 @@ namespace Floodlight {
 	class VertexBuffer : public RenderResource
 	{
 	public:
-		VertexBuffer();
 		VertexBuffer(const void* Vertices, uint32 SizeBytes, uint32 StrideBytes);
 		~VertexBuffer();
 

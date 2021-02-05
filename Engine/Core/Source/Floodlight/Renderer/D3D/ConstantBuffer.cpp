@@ -16,13 +16,13 @@ namespace Floodlight {
 	/*
 		Allocate a resource with a certain size. Get and fill a descriptor.
 	*/
-	ConstantBuffer::ConstantBuffer(uint32 SizeBytes_)
+	ConstantBuffer::ConstantBuffer(uint32 SizeBytes)
 	{
 		/*
 			First we allocate the resource on the GPU.
 		*/
-		IndividualSizeBytes = SizeBytes_;
-		TotalSizeBytes = PadConstantBufferSize(SizeBytes_);
+		IndividualSizeBytes = SizeBytes;
+		TotalSizeBytes = PadConstantBufferSize(SizeBytes);
 
 		D3D12_HEAP_PROPERTIES HeapProps = {};
 		HeapProps.Type = D3D12_HEAP_TYPE_UPLOAD;

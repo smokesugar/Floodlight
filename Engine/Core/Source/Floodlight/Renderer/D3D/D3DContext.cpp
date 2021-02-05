@@ -236,7 +236,7 @@ namespace Floodlight {
 	}
 
 	confined ConstantBuffer*&
-	GetTestConstantBuffer()
+	GetOffsetConstantBuffer()
 	{
 		persist ConstantBuffer* CB = nullptr;
 		return CB;
@@ -303,7 +303,7 @@ namespace Floodlight {
 			Params[1].DescriptorTable.pDescriptorRanges = &Ranges[1];
 
 			D3D12_ROOT_SIGNATURE_DESC Desc = {};
-			Desc.NumParameters = std::size(Params);
+			Desc.NumParameters = (uint32)std::size(Params);
 			Desc.pParameters = Params;
 			Desc.NumStaticSamplers = 0;
 			Desc.pStaticSamplers = nullptr;
@@ -423,7 +423,7 @@ namespace Floodlight {
 
 		{ // Create MVP constant buffer
 			GetMVPConstantBuffer() = new ConstantBuffer(sizeof(matrix));
-			GetTestConstantBuffer() = new ConstantBuffer(sizeof(matrix));
+			GetOffsetConstantBuffer() = new ConstantBuffer(sizeof(matrix));
 		}
 	}
 
@@ -434,7 +434,7 @@ namespace Floodlight {
 	ReleaseAssets()
 	{
 		delete GetMVPConstantBuffer();
-		delete GetTestConstantBuffer();
+		delete GetOffsetConstantBuffer();
 		delete GetIndexBuffer();
 		delete GetVertexBuffer();
 		GetPipelineState()->Release();
@@ -622,8 +622,8 @@ namespace Floodlight {
 		GetMVPConstantBuffer()->Update(&MVP, sizeof(MVP));
 		BindConstantBuffer(GetMVPConstantBuffer(), 0);
 		matrix TestOffset = XMMatrixTranslation(sinf(Time), 0.0f, 0.0f);
-		GetTestConstantBuffer()->Update(&TestOffset, sizeof(TestOffset));
-		BindConstantBuffer(GetTestConstantBuffer(), 1);
+		GetOffsetConstantBuffer()->Update(&TestOffset, sizeof(TestOffset));
+		BindConstantBuffer(GetOffsetConstantBuffer(), 1);
 
 		/*
 			Bind vertices and draw.

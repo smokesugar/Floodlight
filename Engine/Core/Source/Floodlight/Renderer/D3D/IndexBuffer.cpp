@@ -5,14 +5,6 @@
 namespace Floodlight {
 
 	/*
-		If using empty constructor, initialize nothing.
-	*/
-	IndexBuffer::IndexBuffer()
-	{
-
-	}
-
-	/*
 		Using the D3D12 api, create the index buffer object on the GPU.
 	*/
 	IndexBuffer::IndexBuffer(const uint32* Indices, uint32 SizeBytes)

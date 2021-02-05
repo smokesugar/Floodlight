@@ -12,7 +12,6 @@ namespace Floodlight {
 	class IndexBuffer : public RenderResource
 	{
 	public:
-		IndexBuffer();
 		IndexBuffer(const uint32* Indices, uint32 SizeBytes);
 		~IndexBuffer();
 

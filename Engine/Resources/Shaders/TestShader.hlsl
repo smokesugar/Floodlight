@@ -10,16 +10,16 @@ cbuffer MVPConstants : register(b0)
     matrix MVP;
 };
 
-cbuffer TestConstants : register(b1)
+cbuffer OffsetConstants : register(b1)
 {
-    matrix Test;
+    matrix OffsetMatrix;
 };
 
 VSOut
 VSMain(float3 pos : Position, float4 col : Color)
 {
     VSOut vso;
-    vso.svpos = mul(Test, mul(MVP, float4(pos, 1.0f)));
+    vso.svpos = mul(OffsetMatrix, mul(MVP, float4(pos, 1.0f)));
     vso.col = col;
     return vso;
 }

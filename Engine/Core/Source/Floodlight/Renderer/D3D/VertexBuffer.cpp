@@ -5,13 +5,6 @@
 namespace Floodlight {
 
 	/*
-		If using empty constructor, initialize nothing.
-	*/
-	VertexBuffer::VertexBuffer()
-	{
-	}
-
-	/*
 		Using the D3D12 api, create the vertex buffer object on the GPU.
 	*/
 	VertexBuffer::VertexBuffer(const void* Vertices, uint32 SizeBytes, uint32 StrideBytes)
