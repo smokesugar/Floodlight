@@ -8,6 +8,7 @@
 
 #include "CommandList.h"
 #include "DescriptorHeap.h"
+#include "ConstantBuffer.h"
 
 #define cbuffer struct
 
@@ -22,7 +23,7 @@ namespace Floodlight {
 		/*
 			Constants
 		*/
-		static constexpr uint32 SwapChainBufferCount = 2;
+		static constexpr uint32 SwapChainBufferCount = 3;
 
 		/*
 			Lifetime Controls
@@ -45,7 +46,7 @@ namespace Floodlight {
 		ID3D12Device*& GetDevice();
 		CommandList& GetCommandList();
 		DescriptorHeap& GetCBVSRVUAVDescriptorHeap();
-		
+		uint32 GetSwapChainBufferIndex();
 	}
 
 }

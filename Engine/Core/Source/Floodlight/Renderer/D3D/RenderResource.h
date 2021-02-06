@@ -19,7 +19,7 @@ namespace Floodlight {
 	protected:
 		void Release();
 		virtual void InternalRelease() = 0;
-	private:
+	protected:
 		ReferenceCounter* RefCounter;
 	};
 

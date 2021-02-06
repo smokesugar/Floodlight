@@ -42,12 +42,27 @@ namespace Floodlight {
 		Entity Create();
 		void Destroy(Entity Ent);
 
+		/*
+			Add a component of a specific type to an entity.
+		*/
 		template<typename Type>
 		inline Type& Insert(Entity Ent, const Type& Data)
 		{
 			return GetPool<Type>()->Insert(Ent, Data);
 		}
 
+		/*
+			Create a component of a specific type from arguments, and insert it.
+		*/
+		template<typename Type, typename... Args>
+		inline Type& Emplace(Entity Ent, Args&&... Arguments)
+		{
+			return Insert<Type>(Ent, Type(std::forward<Args>(Arguments)...));
+		}
+
+		/*
+			Remove a component of a specific type from an entity.
+		*/
 		template<typename Type>
 		inline void Remove(Entity Ent)
 		{

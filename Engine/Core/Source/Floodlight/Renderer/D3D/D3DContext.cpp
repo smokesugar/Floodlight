@@ -8,7 +8,6 @@
 #include "Floodlight/Utilities/Math.h"
 #include "VertexBuffer.h"
 #include "IndexBuffer.h"
-#include "ConstantBuffer.h"
 
 namespace Floodlight {
 
@@ -486,6 +485,9 @@ namespace Floodlight {
 		InitializeAssets();
 
 		WaitForCommandQueueToFlush(D3DContext::GetCommandList().GetCommandQueue());
+
+		matrix TestOffset = XMMatrixScaling(0.25f, 0.25f, 0.25f);
+		ConstantBuffer::Update(GetOffsetConstantBuffer(), &TestOffset, sizeof(TestOffset));
 	}
 
 	/*
@@ -495,6 +497,8 @@ namespace Floodlight {
 	D3DContext::Shutdown()
 	{
 		WaitForCommandQueueToFlush(GetCommandList().GetCommandQueue());
+
+		ConstantBuffer::DestroyUpdateQueue();
 
 		ReleaseAssets();
 
@@ -515,6 +519,8 @@ namespace Floodlight {
 	void
 	D3DContext::ResizeSwapChain(uint32 Width, uint32 Height)
 	{
+		WaitForCommandQueueToFlush(GetCommandList().GetCommandQueue());
+
 		GetRTVDescriptorHeap()->Release();
 		for (uint32 i = 0; i < SwapChainBufferCount; i++)
 			GetSwapChainBuffer(i)->Release();
@@ -618,12 +624,11 @@ namespace Floodlight {
 			Update the MVP constants and bind the buffer.
 		*/
 		float AspectRatio = (float)Width / (float)Height;
-		matrix MVP = XMMatrixRotationRollPitchYaw(0.0f, ToRadians(Time * 90.0f), ToRadians(Time * 180.0f)) * XMMatrixTranslation(0.0f, 0.0f, 2.0f) * XMMatrixPerspectiveFovLH(ToRadians(80.0f), AspectRatio, 0.1f, 100.0f);
-		GetMVPConstantBuffer()->Update(&MVP, sizeof(MVP));
-		BindConstantBuffer(GetMVPConstantBuffer(), 0);
-		matrix TestOffset = XMMatrixTranslation(sinf(Time), 0.0f, 0.0f);
-		GetOffsetConstantBuffer()->Update(&TestOffset, sizeof(TestOffset));
-		BindConstantBuffer(GetOffsetConstantBuffer(), 1);
+		matrix MVP = XMMatrixRotationRollPitchYaw(ToRadians(Time * 180.0f), ToRadians(Time * 360.0f), 0.0f) * XMMatrixTranslation(0.0f, 0.0f, 2.0f) * XMMatrixPerspectiveFovLH(ToRadians(80.0f), AspectRatio, 0.1f, 100.0f);
+		ConstantBuffer::Update(GetMVPConstantBuffer(), &MVP, sizeof(MVP));
+		ConstantBuffer::Bind(GetMVPConstantBuffer(), 0);
+
+		ConstantBuffer::Bind(GetOffsetConstantBuffer(), 1);
 
 		/*
 			Bind vertices and draw.
@@ -644,6 +649,7 @@ namespace Floodlight {
 
 		// Present buffer
 		HResultCall(GetSwapChain()->Present(0, 0));
+		ConstantBuffer::DoUpdateQueue(GetSwapChainBufferIndex());
 	}
 
 	/*
@@ -669,6 +675,15 @@ namespace Floodlight {
     {
 		persist DescriptorHeap Heap;
 		return Heap;
+    }
+
+	/*
+		Return the current swap chain buffer index.
+	*/
+    uint32
+	D3DContext::GetSwapChainBufferIndex()
+    {
+		return GetSwapChain()->GetCurrentBackBufferIndex();
     }
 
 }

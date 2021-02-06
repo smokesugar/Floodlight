@@ -26,7 +26,7 @@ namespace Floodlight {
 	Entity
 	ECSRegistry::Create()
 	{
-		persist uint32 Counter = 0;
+		persist uint32 Counter = 1;
 		return (Entity)Counter++;
 	}
 

@@ -7,14 +7,22 @@
 
 namespace Floodlight {
 
-	struct Position
+	struct PositionComponent
 	{	
 		float3 Pos;
+		PositionComponent(float3 Position)
+		{
+			Pos = Position;
+		}
 	};
 
-	struct Velocity
+	struct VelocityComponent
 	{
 		float3 Vel;
+		VelocityComponent(float3 Velocity)
+		{
+			Vel = Velocity;
+		}
 	};
 	
 	Runtime::Runtime()
@@ -25,35 +33,35 @@ namespace Floodlight {
 		Entity Ent2 = Reg.Create();
 		Entity Ent3 = Reg.Create();
 
-		Reg.Insert(Ent0, Position{ float3(0.0f, 1.0f, 0.0f) });
-		Reg.Insert(Ent0, Velocity{ float3(0.0f, 6.0f, 0.3f) });
-		FL_Assert(Reg.Has<Position>(Ent0), "Failure to add/remove component.");
-		FL_Assert(Reg.Has<Velocity>(Ent0), "Failure to add/remove component.");
+		Reg.Emplace<PositionComponent>(Ent0, float3(0.0f, 1.0f, 0.0f));
+		Reg.Insert(Ent0, VelocityComponent{ float3(0.0f, 6.0f, 0.3f) });
+		FL_Assert(Reg.Has<PositionComponent>(Ent0), "Failure to add/remove component.");
+		FL_Assert(Reg.Has<VelocityComponent>(Ent0), "Failure to add/remove component.");
 
-		Reg.Insert(Ent1, Position{ float3(0.0f, 1.0f, 0.0f) });
-		Reg.Remove<Position>(Ent1);
-		Reg.Insert(Ent1, Velocity{ float3(1.0f, 6.0f, 0.3f) });
-		Reg.Remove<Velocity>(Ent1);
-		FL_Assert(!Reg.Has<Position>(Ent1), "Failure to add/remove component.");
-		FL_Assert(!Reg.Has<Velocity>(Ent1), "Failure to add/remove component.");
+		Reg.Insert(Ent1, PositionComponent{ float3(0.0f, 1.0f, 0.0f) });
+		Reg.Remove<PositionComponent>(Ent1);
+		Reg.Insert(Ent1, VelocityComponent{ float3(1.0f, 6.0f, 0.3f) });
+		Reg.Remove<VelocityComponent>(Ent1);
+		FL_Assert(!Reg.Has<PositionComponent>(Ent1), "Failure to add/remove component.");
+		FL_Assert(!Reg.Has<VelocityComponent>(Ent1), "Failure to add/remove component.");
 
-		Reg.Insert(Ent2, Position{ float3(0.0f, 1.0f, 0.0f) });
-		Reg.Remove<Position>(Ent2);
-		Reg.Insert(Ent2, Velocity{ float3(5.0f, 6.0f, 4.3f) });
+		Reg.Insert(Ent2, PositionComponent{ float3(0.0f, 1.0f, 0.0f) });
+		Reg.Remove<PositionComponent>(Ent2);
+		Reg.Insert(Ent2, VelocityComponent{ float3(5.0f, 6.0f, 4.3f) });
 		Reg.Destroy(Ent2);
-		FL_Assert(!Reg.Has<Position>(Ent2), "Failure to add/remove component.");
-		FL_Assert(!Reg.Has<Velocity>(Ent2), "Failure to add/remove component.");
+		FL_Assert(!Reg.Has<PositionComponent>(Ent2), "Failure to add/remove component.");
+		FL_Assert(!Reg.Has<VelocityComponent>(Ent2), "Failure to add/remove component.");
 
-		Reg.Insert(Ent3, Position{ float3(1.0f, 1.0f, 7.0f) });
-		FL_Assert(Reg.Has<Position>(Ent3), "Failure to add/remove component.");
+		Reg.Insert(Ent3, PositionComponent{ float3(1.0f, 1.0f, 7.0f) });
+		FL_Assert(Reg.Has<PositionComponent>(Ent3), "Failure to add/remove component.");
 		
 		{
-			Position& Pos = Reg.Get<Position>(Ent0);
+			PositionComponent& Pos = Reg.Get<PositionComponent>(Ent0);
 			FL_Trace("Ent0 Position: {0} {1} {2}", Pos.Pos.x, Pos.Pos.y, Pos.Pos.z);
 		}
 
 		{
-			Position& Pos = Reg.Get<Position>(Ent3);
+			PositionComponent& Pos = Reg.Get<PositionComponent>(Ent3);
 			FL_Trace("Ent3 Position: {0} {1} {2}", Pos.Pos.x, Pos.Pos.y, Pos.Pos.z);
 		}
 	}

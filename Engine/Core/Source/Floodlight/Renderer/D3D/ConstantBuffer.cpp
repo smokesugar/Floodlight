@@ -1,8 +1,32 @@
 #include "ConstantBuffer.h"
 
+#include <unordered_map>
+
 #include "D3DContext.h"
 
 namespace Floodlight {
+
+	confined std::unordered_map<ReferenceCounter*, UpdateObj> UpdateQueue;
+
+	/*
+		Individual update call (Called from frame to frame).
+	*/
+	bool
+	ConstantBuffer::DoUpdateObj(UpdateObj* Obj, uint32 FrameIndex)
+	{
+		Obj->Counter--;
+
+		// Upload the data
+		D3D12_RANGE ReadRange = {};
+		uint8* BufferData;
+		Obj->Buffer->Buffer->Map(0, &ReadRange, (void**)&BufferData);
+		uint32 ByteOffset = Obj->Buffer->IndividualSizeBytes * FrameIndex;
+		memcpy(BufferData + ByteOffset, Obj->Data, Obj->SizeBytes);
+		Obj->Buffer->Buffer->Unmap(0, nullptr);
+
+		// Say if we should remove it from the queue
+		return Obj->Counter == 0;
+	}
 
 	/*
 		Pad constant buffer sizes to 256 boundaries.
@@ -21,8 +45,9 @@ namespace Floodlight {
 		/*
 			First we allocate the resource on the GPU.
 		*/
-		IndividualSizeBytes = SizeBytes;
-		TotalSizeBytes = PadConstantBufferSize(SizeBytes);
+		OriginalSize = SizeBytes;
+		IndividualSizeBytes = PadConstantBufferSize(OriginalSize);
+		TotalSizeBytes = PadConstantBufferSize(IndividualSizeBytes*D3DContext::SwapChainBufferCount);
 
 		D3D12_HEAP_PROPERTIES HeapProps = {};
 		HeapProps.Type = D3D12_HEAP_TYPE_UPLOAD;
@@ -45,18 +70,20 @@ namespace Floodlight {
 
 		D3DContext::GetDevice()->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE, &ResourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&Buffer));
 
-		/*
-			Then we ask the descriptor heap to allocate us a slot within it.
-		*/
-		DescriptorHeapIndex =  D3DContext::GetCBVSRVUAVDescriptorHeap().GetNewIndex();
+		// Create the constant buffer views
+		for (uint32 i = 0; i < D3DContext::SwapChainBufferCount; i++) {
+			// We ask the descriptor heap to allocate us slots within it.
+			DescriptorHeapIndices.push_back(D3DContext::GetCBVSRVUAVDescriptorHeap().GetNewIndex());
 
-		/*
-			Then we create the view in that slot.
-		*/
-		D3D12_CONSTANT_BUFFER_VIEW_DESC CBVDesc = {};
-		CBVDesc.BufferLocation = Buffer->GetGPUVirtualAddress();
-		CBVDesc.SizeInBytes = TotalSizeBytes;
-		D3DContext::GetDevice()->CreateConstantBufferView(&CBVDesc, D3DContext::GetCBVSRVUAVDescriptorHeap().GetCPUHandleAtIndex(DescriptorHeapIndex));
+			//Then we create the views in those slots.
+			D3D12_CONSTANT_BUFFER_VIEW_DESC CBVDesc = {};
+			D3D12_GPU_DESCRIPTOR_HANDLE Handle;
+			Handle.ptr = Buffer->GetGPUVirtualAddress();
+			IncrementDescriptorHandle(&Handle, i * IndividualSizeBytes);
+			CBVDesc.BufferLocation = Handle.ptr;
+			CBVDesc.SizeInBytes = IndividualSizeBytes;
+			D3DContext::GetDevice()->CreateConstantBufferView(&CBVDesc, D3DContext::GetCBVSRVUAVDescriptorHeap().GetCPUHandleAtIndex(DescriptorHeapIndices[i]));
+		}
 	}
 
 	ConstantBuffer::~ConstantBuffer()
@@ -65,35 +92,85 @@ namespace Floodlight {
 		Release();
 	}
 
+	/*
+		This function is called every frame to update each constant buffer in the queue.
+	*/
 	void
-	ConstantBuffer::Update(void* Data, uint32 SizeBytes)
+	ConstantBuffer::DoUpdateQueue(uint32 FrameIndex)
 	{
-		FL_Assert(SizeBytes == IndividualSizeBytes, "Updating constant buffer with an invalid amount of data.");
-
-		D3D12_RANGE ReadRange = {};
-		void* BufferData;
-		Buffer->Map(0, &ReadRange, &BufferData);
-		memcpy(BufferData, Data, SizeBytes);
-		Buffer->Unmap(0, nullptr);
+		auto It = UpdateQueue.begin();
+		while (It != UpdateQueue.end())
+		{
+			bool Finished = DoUpdateObj(&It->second, FrameIndex);
+			if (Finished)
+			{
+				free(It->second.Data);
+				It = UpdateQueue.erase(It);
+			}
+			else {
+				It++;
+			}
+		}
 	}
 
-	void
-	ConstantBuffer::InternalRelease()
+	/*
+		Free all the allocated memory.
+	*/
+	void ConstantBuffer::DestroyUpdateQueue()
 	{
-		// Free our slot in the descriptor heap.
-		D3DContext::GetCBVSRVUAVDescriptorHeap().FreeIndex(DescriptorHeapIndex);
-		Buffer->Release();
+		for (auto& [RefCounter, Obj] : UpdateQueue)
+		{
+			free(Obj.Data);
+		}
+	}
+
+	/*
+		Submit constant buffer for submission over multiple frames.
+	*/
+	void
+	ConstantBuffer::Update(ConstantBuffer* Buffer, void* Data, uint32 SizeBytes)
+	{
+		FL_Assert(SizeBytes == Buffer->OriginalSize, "Updating constant buffer with an invalid amount of data.");
+
+		// Create the object if it does not exist
+		if (UpdateQueue.find(Buffer->RefCounter) == UpdateQueue.end())
+		{
+			UpdateObj Obj;
+			Obj.Buffer = Buffer;
+			Obj.Data = malloc(SizeBytes);
+			Obj.SizeBytes = SizeBytes;
+			UpdateQueue[Buffer->RefCounter] = Obj;
+		}
+
+		UpdateObj& Obj = UpdateQueue[Buffer->RefCounter];
+		Obj.Counter = D3DContext::SwapChainBufferCount;
+		memcpy(Obj.Data, Data, SizeBytes);
+
+		// Update now
+		DoUpdateObj(&Obj, D3DContext::GetSwapChainBufferIndex());
 	}
 
 	/*
 		Issue a command to bind the constant buffer.
 	*/
-	void 
-	BindConstantBuffer(const ConstantBuffer* Buffer, uint32 Index)
-	{
-		// Get the handle to our view in the descriptor heap and bind it.
-		D3D12_GPU_DESCRIPTOR_HANDLE Handle = D3DContext::GetCBVSRVUAVDescriptorHeap().GetGPUHandleAtIndex(Buffer->GetDescriptorHeapIndex());
+	void ConstantBuffer::Bind(const ConstantBuffer* Buffer, uint32 Index)
+    {
+		uint32 FrameIndex = D3DContext::GetSwapChainBufferIndex();
+		uint32 DescriptorHeapIndex = Buffer->DescriptorHeapIndices[FrameIndex];
+		D3D12_GPU_DESCRIPTOR_HANDLE Handle = D3DContext::GetCBVSRVUAVDescriptorHeap().GetGPUHandleAtIndex(DescriptorHeapIndex);
 		D3DContext::GetCommandList().Get()->SetGraphicsRootDescriptorTable(Index, Handle);
+    }
+
+	/*
+		Release D3D objects.
+	*/
+	void
+	ConstantBuffer::InternalRelease()
+	{
+		// Free our slot in the descriptor heap.
+		for(auto& Index : DescriptorHeapIndices)
+			D3DContext::GetCBVSRVUAVDescriptorHeap().FreeIndex(Index);
+		Buffer->Release();
 	}
 
 }
