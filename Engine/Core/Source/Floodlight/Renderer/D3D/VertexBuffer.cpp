@@ -56,22 +56,16 @@ namespace Floodlight {
 
 	VertexBuffer::~VertexBuffer()
 	{
-		Release();
-	}
-
-	void
-	VertexBuffer::InternalRelease()
-	{
-		if(Buffer) Buffer->Release();
+		Buffer->Release();
 	}
 
 	/*
 		Issue a command to set a vertex buffer.
 	*/
 	void
-	BindVertexBuffer(const VertexBuffer* Buffer)
+	VertexBuffer::Bind(const VertexBuffer* Buffer)
 	{
-		D3DContext::GetCommandList().Get()->IASetVertexBuffers(0, 1, &Buffer->GetView());
+		D3DContext::GetCommandList().Get()->IASetVertexBuffers(0, 1, &Buffer->View);
 	}
 
 }

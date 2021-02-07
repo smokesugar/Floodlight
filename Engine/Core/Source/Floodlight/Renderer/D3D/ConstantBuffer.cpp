@@ -6,23 +6,23 @@
 
 namespace Floodlight {
 
-	confined std::unordered_map<ReferenceCounter*, UpdateObj> UpdateQueue;
+	confined std::unordered_map<ConstantBuffer*, UpdateObj> UpdateQueue;
 
 	/*
 		Individual update call (Called from frame to frame).
 	*/
 	bool
-	ConstantBuffer::DoUpdateObj(UpdateObj* Obj, uint32 FrameIndex)
+	ConstantBuffer::DoUpdateObj(ConstantBuffer* Buffer, UpdateObj* Obj, uint32 FrameIndex)
 	{
 		Obj->Counter--;
 
 		// Upload the data
 		D3D12_RANGE ReadRange = {};
 		uint8* BufferData;
-		Obj->Buffer->Buffer->Map(0, &ReadRange, (void**)&BufferData);
-		uint32 ByteOffset = Obj->Buffer->IndividualSizeBytes * FrameIndex;
+		Buffer->Buffer->Map(0, &ReadRange, (void**)&BufferData);
+		uint32 ByteOffset = Buffer->IndividualSizeBytes * FrameIndex;
 		memcpy(BufferData + ByteOffset, Obj->Data, Obj->SizeBytes);
-		Obj->Buffer->Buffer->Unmap(0, nullptr);
+		Buffer->Buffer->Unmap(0, nullptr);
 
 		// Say if we should remove it from the queue
 		return Obj->Counter == 0;
@@ -88,8 +88,10 @@ namespace Floodlight {
 
 	ConstantBuffer::~ConstantBuffer()
 	{
-		// Free the descriptor
-		Release();
+		// Free our slot in the descriptor heap.
+		for (auto& Index : DescriptorHeapIndices)
+			D3DContext::GetCBVSRVUAVDescriptorHeap().FreeIndex(Index);
+		Buffer->Release();
 	}
 
 	/*
@@ -101,7 +103,7 @@ namespace Floodlight {
 		auto It = UpdateQueue.begin();
 		while (It != UpdateQueue.end())
 		{
-			bool Finished = DoUpdateObj(&It->second, FrameIndex);
+			bool Finished = DoUpdateObj(It->first, &It->second, FrameIndex);
 			if (Finished)
 			{
 				free(It->second.Data);
@@ -133,21 +135,20 @@ namespace Floodlight {
 		FL_Assert(SizeBytes == Buffer->OriginalSize, "Updating constant buffer with an invalid amount of data.");
 
 		// Create the object if it does not exist
-		if (UpdateQueue.find(Buffer->RefCounter) == UpdateQueue.end())
+		if (UpdateQueue.find(Buffer) == UpdateQueue.end())
 		{
 			UpdateObj Obj;
-			Obj.Buffer = Buffer;
 			Obj.Data = malloc(SizeBytes);
 			Obj.SizeBytes = SizeBytes;
-			UpdateQueue[Buffer->RefCounter] = Obj;
+			UpdateQueue[Buffer] = Obj;
 		}
 
-		UpdateObj& Obj = UpdateQueue[Buffer->RefCounter];
+		UpdateObj& Obj = UpdateQueue[Buffer];
 		Obj.Counter = D3DContext::SwapChainBufferCount;
 		memcpy(Obj.Data, Data, SizeBytes);
 
 		// Update now
-		DoUpdateObj(&Obj, D3DContext::GetSwapChainBufferIndex());
+		//DoUpdateObj(Buffer, &Obj, D3DContext::GetSwapChainBufferIndex());
 	}
 
 	/*
@@ -160,17 +161,5 @@ namespace Floodlight {
 		D3D12_GPU_DESCRIPTOR_HANDLE Handle = D3DContext::GetCBVSRVUAVDescriptorHeap().GetGPUHandleAtIndex(DescriptorHeapIndex);
 		D3DContext::GetCommandList().Get()->SetGraphicsRootDescriptorTable(Index, Handle);
     }
-
-	/*
-		Release D3D objects.
-	*/
-	void
-	ConstantBuffer::InternalRelease()
-	{
-		// Free our slot in the descriptor heap.
-		for(auto& Index : DescriptorHeapIndices)
-			D3DContext::GetCBVSRVUAVDescriptorHeap().FreeIndex(Index);
-		Buffer->Release();
-	}
 
 }

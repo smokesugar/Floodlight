@@ -2,29 +2,29 @@
 
 #include <d3d12.h>
 
-#include "RenderResource.h"
+#include "Floodlight/Utilities/IntTypes.h"
 
 namespace Floodlight {
 
 	/*
 		Index buffer object. Used to store indices into vertices for rendering.
 	*/
-	class IndexBuffer : public RenderResource
+	class IndexBuffer
 	{
 	public:
 		IndexBuffer(const uint32* Indices, uint32 SizeBytes);
 		~IndexBuffer();
 
+		IndexBuffer(const IndexBuffer&) = delete;
+		inline void operator=(const IndexBuffer&) = delete;
+
 		inline uint32 GetCount() const { return Count; }
-		inline const D3D12_INDEX_BUFFER_VIEW& GetView() const { FL_Assert(Buffer, "Cannot retrieve view from an unintialized index buffer.");  return View; }
-	private:
-		virtual void InternalRelease() override;
+		
+		static void Bind(const IndexBuffer* Buffer);
 	private:
 		ID3D12Resource* Buffer = nullptr;
 		D3D12_INDEX_BUFFER_VIEW View = {};
 		uint32 Count = 0;
 	};
-
-	void BindIndexBuffer(const IndexBuffer* Buffer);
 
 }

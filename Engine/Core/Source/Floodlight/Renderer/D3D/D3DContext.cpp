@@ -234,13 +234,6 @@ namespace Floodlight {
 		return CB;
 	}
 
-	confined ConstantBuffer*&
-	GetOffsetConstantBuffer()
-	{
-		persist ConstantBuffer* CB = nullptr;
-		return CB;
-	}
-
 	confined ID3DBlob*
 	CompileShader(const wchar_t* File, const char* EntryPoint, const char* Profile)
 	{
@@ -275,7 +268,7 @@ namespace Floodlight {
 	InitializeAssets()
 	{
 		{ // Create an empty root signature
-			D3D12_DESCRIPTOR_RANGE Ranges[2];
+			D3D12_DESCRIPTOR_RANGE Ranges[1];
 
 			Ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 			Ranges[0].NumDescriptors = 1;
@@ -283,23 +276,12 @@ namespace Floodlight {
 			Ranges[0].RegisterSpace = 0;
 			Ranges[0].OffsetInDescriptorsFromTableStart = 0;
 
-			Ranges[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-			Ranges[1].NumDescriptors = 1;
-			Ranges[1].BaseShaderRegister = 1;
-			Ranges[1].RegisterSpace = 0;
-			Ranges[1].OffsetInDescriptorsFromTableStart = 0;
-
-			D3D12_ROOT_PARAMETER Params[2];
+			D3D12_ROOT_PARAMETER Params[1];
 
 			Params[0] = {};
 			Params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 			Params[0].DescriptorTable.NumDescriptorRanges = 1;
 			Params[0].DescriptorTable.pDescriptorRanges = &Ranges[0];
-
-			Params[1] = {};
-			Params[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-			Params[1].DescriptorTable.NumDescriptorRanges = 1;
-			Params[1].DescriptorTable.pDescriptorRanges = &Ranges[1];
 
 			D3D12_ROOT_SIGNATURE_DESC Desc = {};
 			Desc.NumParameters = (uint32)std::size(Params);
@@ -422,7 +404,6 @@ namespace Floodlight {
 
 		{ // Create MVP constant buffer
 			GetMVPConstantBuffer() = new ConstantBuffer(sizeof(matrix));
-			GetOffsetConstantBuffer() = new ConstantBuffer(sizeof(matrix));
 		}
 	}
 
@@ -433,11 +414,17 @@ namespace Floodlight {
 	ReleaseAssets()
 	{
 		delete GetMVPConstantBuffer();
-		delete GetOffsetConstantBuffer();
 		delete GetIndexBuffer();
 		delete GetVertexBuffer();
 		GetPipelineState()->Release();
 		GetRootSignature()->Release();
+	}
+
+	confined bool&
+	GetInitializedBoolean()
+	{
+		persist bool Initialized = false;
+		return Initialized;
 	}
 
 	/*
@@ -486,8 +473,7 @@ namespace Floodlight {
 
 		WaitForCommandQueueToFlush(D3DContext::GetCommandList().GetCommandQueue());
 
-		matrix TestOffset = XMMatrixScaling(0.25f, 0.25f, 0.25f);
-		ConstantBuffer::Update(GetOffsetConstantBuffer(), &TestOffset, sizeof(TestOffset));
+		GetInitializedBoolean() = true;
 	}
 
 	/*
@@ -532,7 +518,7 @@ namespace Floodlight {
 	bool
 	D3DContext::IsInitialized()
 	{
-		return GetDevice() != nullptr;
+		return GetInitializedBoolean();
 	}
 
 	/*
@@ -585,7 +571,7 @@ namespace Floodlight {
 		Flush command queue and do other shit.
 	*/
 	void
-	D3DContext::Render(uint32 Width, uint32 Height, float Time)
+	D3DContext::Render(uint32 Width, uint32 Height, float DeltaTime, float Time)
 	{
 		/*
 			New frame, new index.
@@ -623,18 +609,26 @@ namespace Floodlight {
 		/*
 			Update the MVP constants and bind the buffer.
 		*/
-		float AspectRatio = (float)Width / (float)Height;
-		matrix MVP = XMMatrixRotationRollPitchYaw(ToRadians(Time * 180.0f), ToRadians(Time * 360.0f), 0.0f) * XMMatrixTranslation(0.0f, 0.0f, 2.0f) * XMMatrixPerspectiveFovLH(ToRadians(80.0f), AspectRatio, 0.1f, 100.0f);
-		ConstantBuffer::Update(GetMVPConstantBuffer(), &MVP, sizeof(MVP));
-		ConstantBuffer::Bind(GetMVPConstantBuffer(), 0);
+		persist float Accum = 1.0f;
+		Accum += DeltaTime;
+		if (Accum >= 1.0f) {
+			Accum = 0.0f;
+			float AspectRatio = (float)Width / (float)Height;
+			matrix MVP = XMMatrixRotationRollPitchYaw(ToRadians(Time * 121.0f), ToRadians(Time * 365.0f), 0.0f) * XMMatrixTranslation(0.0f, 0.0f, 2.0f) * XMMatrixPerspectiveFovLH(ToRadians(80.0f), AspectRatio, 0.1f, 100.0f);
+			ConstantBuffer::Update(GetMVPConstantBuffer(), &MVP, sizeof(MVP));
+			ConstantBuffer::Bind(GetMVPConstantBuffer(), 0);
+		}
 
-		ConstantBuffer::Bind(GetOffsetConstantBuffer(), 1);
+		/*
+			Do cbuffer update queue for this frame.
+		*/
+		ConstantBuffer::DoUpdateQueue(GetSwapChainBufferIndex());
 
 		/*
 			Bind vertices and draw.
 		*/
-		BindVertexBuffer(GetVertexBuffer());
-		BindIndexBuffer(GetIndexBuffer());
+		VertexBuffer::Bind(GetVertexBuffer());
+		IndexBuffer::Bind(GetIndexBuffer());
 		GetCommandList().Get()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		GetCommandList().Get()->DrawIndexedInstanced(GetIndexBuffer()->GetCount(), 1, 0, 0, 0);
 
@@ -644,12 +638,15 @@ namespace Floodlight {
 		D3D12_RESOURCE_BARRIER BarrierToPresent = CreateTransitionBarrier(GetSwapChainBuffer(Frame), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 		GetCommandList().Get()->ResourceBarrier(1, &BarrierToPresent);
 
-		// Indicate we are finished with recording commands
+		/*
+			Indicate we are finished with recording commands
+		*/
 		GetCommandList().Execute();
 
-		// Present buffer
+		/*
+			Present image.
+		*/
 		HResultCall(GetSwapChain()->Present(0, 0));
-		ConstantBuffer::DoUpdateQueue(GetSwapChainBufferIndex());
 	}
 
 	/*

@@ -38,7 +38,7 @@ namespace Floodlight {
 		*/
 		void SetViewport(float X, float Y, float Width, float Height);
 		void SetScissor(uint32 X, uint32 Y, uint32 Width, uint32 Height);
-		void Render(uint32 Width, uint32 Height, float Time);
+		void Render(uint32 Width, uint32 Height, float DeltaTime, float Time);
 
 		/*
 			Accessors

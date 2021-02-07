@@ -1,11 +1,10 @@
 #pragma once
 
 #include <d3d12.h>
+#include <vector>
 
 #include "Floodlight/Utilities/IntTypes.h"
 #include "Floodlight/Utilities/Keywords.h"
-
-#include "RenderResource.h"
 
 namespace Floodlight {
 
@@ -14,7 +13,6 @@ namespace Floodlight {
 	*/
 	struct UpdateObj
 	{
-		class ConstantBuffer* Buffer;
 		void* Data;
 		uint32 SizeBytes;
 		uint32 Counter;
@@ -22,27 +20,33 @@ namespace Floodlight {
 
 	/*
 		Constant buffer object. Used to store data for shader use.
+		Note that updating a constant buffer will force it to update over multiple frames.
+		This is required in order to 
 	*/
-	class ConstantBuffer : public RenderResource
+	class ConstantBuffer
 	{
 	public:
 		ConstantBuffer(uint32 SizeBytes);
 		~ConstantBuffer();
 
-		static void DoUpdateQueue(uint32 FrameIndex);
-		static void DestroyUpdateQueue();
+		ConstantBuffer(const ConstantBuffer&) = delete;
+		inline void operator=(const ConstantBuffer&) = delete;
 
 		static void Update(ConstantBuffer* Buffer, void* Data, uint32 SizeBytes);
 		static void Bind(const ConstantBuffer* Buffer, uint32 Index);
+
+		// These functions manage the update queue.
+		static void DoUpdateQueue(uint32 FrameIndex);
+		static void DestroyUpdateQueue();
 	private:
-		virtual void InternalRelease() override;
-		static bool DoUpdateObj(UpdateObj* Obj, uint32 FrameIndex);
+		// This function updates a constant buffer based on an update object.
+		static bool DoUpdateObj(ConstantBuffer* Buffer, UpdateObj* Obj, uint32 FrameIndex);
 	private:
-		uint32 OriginalSize;
-		uint32 IndividualSizeBytes;
-		uint32 TotalSizeBytes;
-		std::vector<uint32> DescriptorHeapIndices;
-		ID3D12Resource* Buffer = nullptr;
+		uint32 OriginalSize; // Size of buffer supplied in constructor.
+		uint32 IndividualSizeBytes; // Size of each padded instance in the buffer.
+		uint32 TotalSizeBytes;  // Total size of the allocated buffer.
+		std::vector<uint32> DescriptorHeapIndices; // The indices into the descriptor heap.
+		ID3D12Resource* Buffer = nullptr; // The D3D buffer.
 	};
 
 }

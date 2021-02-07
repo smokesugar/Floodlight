@@ -76,7 +76,7 @@ namespace Floodlight {
 
 			uint32 Width, Height;
 			GetWindowDimensions(Window, &Width, &Height);
-			D3DContext::Render(Width, Height, (float)TimeAccum);
+			D3DContext::Render(Width, Height, (float)DeltaTime, (float)TimeAccum);
 		}
 
 		// Clean up core engine

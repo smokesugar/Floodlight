@@ -1,6 +1,5 @@
 #include "Runtime.h"
 
-#include "Floodlight/Renderer/D3D/RenderResource.h"
 #include "Floodlight/Utilities/DebugLog.h"
 #include "Floodlight/Utilities/Math.h"
 #include "Floodlight/System/ECSRegistry.h"
