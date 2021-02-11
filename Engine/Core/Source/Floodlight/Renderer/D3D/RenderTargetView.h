@@ -3,6 +3,7 @@
 #include "Floodlight/Utilities/IntTypes.h"
 #include "Floodlight/Utilities/Math.h"
 #include "Texture.h"
+#include "DepthStencilView.h"
 
 namespace Floodlight {
 
@@ -13,7 +14,6 @@ namespace Floodlight {
 	{
 	public:
 		RenderTargetView(const Texture2D* Parent);
-		RenderTargetView(ID3D12Resource* Parent);
 		~RenderTargetView();
 
 		RenderTargetView(const RenderTargetView&) = delete;
@@ -24,12 +24,10 @@ namespace Floodlight {
 		D3D12_CPU_DESCRIPTOR_HANDLE GetCPUHandle() const;
 		inline ID3D12Resource* GetParentResource() const { return ParentResource; }
 	private:
-		void Init(ID3D12Resource* Parent);
-	private:
 		uint32 DescriptorIndex = 0;
 		ID3D12Resource* ParentResource;
 	};
 
-	void BindRenderTargets(RenderTargetView** RenderTargets, uint32 NumRenderTargets);
+	void BindRenderTargets(RenderTargetView** RenderTargets, uint32 NumRenderTargets, DepthStencilView* DSV);
 
 }

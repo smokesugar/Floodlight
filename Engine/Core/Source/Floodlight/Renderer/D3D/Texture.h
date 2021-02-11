@@ -9,12 +9,14 @@ namespace Floodlight {
 
 	using TextureFormat = int;
 	enum _TextureFormat {
-		RGBA8_UNORM = DXGI_FORMAT_R8G8B8A8_UNORM
+		RGBA8_UNORM = DXGI_FORMAT_R8G8B8A8_UNORM,
+		D32_FLOAT = DXGI_FORMAT_D32_FLOAT
 	};
 
 	using TextureFlags = int;
 	enum _TextureFlags {
 		TextureFlag_RenderTarget = Bit(0),
+		TextureFlag_DepthStencil = Bit(1),
 	};
 
 	struct Texture2DDesc {
@@ -35,10 +37,11 @@ namespace Floodlight {
 	class Texture2D
 	{
 		friend class RenderTargetView;
+		friend class DepthStencilView;
 	public:
 		Texture2D(Texture2DDesc Desc);
 		// This class owns the ID3D12Resource
-		Texture2D(ID3D12Resource* Res);
+		Texture2D(ID3D12Resource* Res, TextureFlags Flags);
 		~Texture2D();
 
 		Texture2D(const Texture2D&) = delete;

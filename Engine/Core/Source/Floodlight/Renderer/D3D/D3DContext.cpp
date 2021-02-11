@@ -74,7 +74,7 @@ namespace Floodlight {
 		Retrieve the current render target view.
 	*/
 	confined RenderTargetView*&
-	GetRTV(uint32 Index)
+	GetSwapChainRTV(uint32 Index)
 	{
 		persist RenderTargetView* RTVs[D3DContext::SwapChainBufferCount];
 		return RTVs[Index];
@@ -137,8 +137,8 @@ namespace Floodlight {
 		{
 			ID3D12Resource* Texture = nullptr;
 			HResultCall(GetSwapChain()->GetBuffer(i, IID_PPV_ARGS(&Texture)));
-			GetSwapChainBuffer(i) = new Texture2D(Texture);
-			GetRTV(i) = new RenderTargetView(GetSwapChainBuffer(i));
+			GetSwapChainBuffer(i) = new Texture2D(Texture, TextureFlag_RenderTarget);
+			GetSwapChainRTV(i) = new RenderTargetView(GetSwapChainBuffer(i));
 		}
 	}
 
@@ -164,6 +164,7 @@ namespace Floodlight {
 		// Suppress individual messages by their ID
 		D3D12_MESSAGE_ID DenyIds[] = {
 			D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE,
+			D3D12_MESSAGE_ID_CLEARDEPTHSTENCILVIEW_MISMATCHINGCLEARVALUE,
 			D3D12_MESSAGE_ID_MAP_INVALID_NULLRANGE,
 			D3D12_MESSAGE_ID_UNMAP_INVALID_NULLRANGE,
 		};
@@ -226,6 +227,36 @@ namespace Floodlight {
 	{
 		persist RenderTargetView* RTVS[D3DContext::SwapChainBufferCount];
 		return RTVS[Index];
+	}
+
+	confined Texture2D*&
+	GetDepthBuffer(uint32 Index)
+	{
+		persist Texture2D* Textures[D3DContext::SwapChainBufferCount];
+		return Textures[Index];
+	}
+
+	confined DepthStencilView*&
+	GetDepthStencilView(uint32 Index)
+	{
+		persist DepthStencilView* DSVs[D3DContext::SwapChainBufferCount];
+		return DSVs[Index];
+	}
+
+	confined void
+	CreateDepthBuffers(uint32 Width, uint32 Height)
+	{
+		Texture2DDesc Desc = {};
+		Desc.Width = Width;
+		Desc.Height = Height;
+		Desc.Format = D32_FLOAT;
+		Desc.Flags = TextureFlag_DepthStencil;
+
+		for (uint32 i = 0; i < D3DContext::SwapChainBufferCount; i++)
+		{
+			GetDepthBuffer(i) = new Texture2D(Desc);
+			GetDepthStencilView(i) = new DepthStencilView(GetDepthBuffer(i));
+		}
 	}
 
 	confined ID3DBlob*
@@ -346,8 +377,10 @@ namespace Floodlight {
 				PSODesc.BlendState.RenderTarget[i] = defaultRenderTargetBlendDesc;
 
 			// Depth Stencil State
-			PSODesc.DepthStencilState.DepthEnable = FALSE;
-			PSODesc.DepthStencilState.StencilEnable = FALSE;
+			PSODesc.DepthStencilState.DepthEnable = TRUE;
+			PSODesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+			PSODesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+			PSODesc.DSVFormat = (DXGI_FORMAT)D32_FLOAT;
 			PSODesc.SampleMask = UINT_MAX;
 			PSODesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 			PSODesc.NumRenderTargets = 1;
@@ -410,6 +443,8 @@ namespace Floodlight {
 				GetIndirectTexture(i) = new Texture2D(Desc);
 				GetIndirectRTV(i) = new RenderTargetView(GetIndirectTexture(i));
 			}
+
+			CreateDepthBuffers(Desc.Width, Desc.Height);
 		}
 	}
 
@@ -423,6 +458,8 @@ namespace Floodlight {
 		{
 			delete GetIndirectTexture(i);
 			delete GetIndirectRTV(i);
+			delete GetDepthBuffer(i);
+			delete GetDepthStencilView(i);
 		}
 
 		delete GetMVPConstantBuffer();
@@ -472,6 +509,7 @@ namespace Floodlight {
 		// Create the descriptor heaps
 		GetCBVSRVUAVDescriptorHeap().Init(DescriptorHeapType_CBV_SRV_UAV, 200);
 		GetRTVDescriptorHeap().Init(DescriptorHeapType_RTV, 20);
+		GetDSVDescriptorHeap().Init(DescriptorHeapType_DSV, 20);
 
 		{ // Create the D3D swap-chain
 			RECT ClientRect;
@@ -503,13 +541,14 @@ namespace Floodlight {
 
 		for (uint32 i = 0; i < SwapChainBufferCount; i++) {
 			delete GetSwapChainBuffer(i);
-			delete GetRTV(i);
+			delete GetSwapChainRTV(i);
 		}
 
 		GetSwapChain()->Release();
 		GetCommandList().Release();
 		GetCBVSRVUAVDescriptorHeap().Release();
 		GetRTVDescriptorHeap().Release();
+		GetDSVDescriptorHeap().Release();
 		GetFence()->Release();
 		GetDevice()->Release();
 	}
@@ -524,7 +563,7 @@ namespace Floodlight {
 
 		for (uint32 i = 0; i < SwapChainBufferCount; i++) {
 			delete GetSwapChainBuffer(i);
-			delete GetRTV(i);
+			delete GetSwapChainRTV(i);
 		}
 
 		GetSwapChain()->ResizeBuffers(0, Width, Height, DXGI_FORMAT_UNKNOWN, 0);
@@ -597,17 +636,32 @@ namespace Floodlight {
 			Texture2D* IndirectTexture = GetIndirectTexture(Frame);
 			if (!AreTextureDescDimensionsAndFormatsTheSame(SwapChainBuffer->GetDesc(), IndirectTexture->GetDesc()))
 			{
-				Texture2DDesc WantedDesc = IndirectTexture->GetDesc();
-				WantedDesc.Width = SwapChainBuffer->GetDesc().Width;
-				WantedDesc.Height = SwapChainBuffer->GetDesc().Height;
-				WantedDesc.Format = SwapChainBuffer->GetDesc().Format;
 				FL_Info("Resizing render target.");
+
 				for (uint32 i = 0; i < SwapChainBufferCount; i++)
 				{
-					delete GetIndirectTexture(i);
-					delete GetIndirectRTV(i);
-					GetIndirectTexture(i) = new Texture2D(WantedDesc);
-					GetIndirectRTV(i) = new RenderTargetView(GetIndirectTexture(i));
+					{
+						Texture2DDesc WantedDesc = GetIndirectTexture(i)->GetDesc();
+						WantedDesc.Width = SwapChainBuffer->GetDesc().Width;
+						WantedDesc.Height = SwapChainBuffer->GetDesc().Height;
+						WantedDesc.Format = SwapChainBuffer->GetDesc().Format;
+
+						delete GetIndirectTexture(i);
+						delete GetIndirectRTV(i);
+						GetIndirectTexture(i) = new Texture2D(WantedDesc);
+						GetIndirectRTV(i) = new RenderTargetView(GetIndirectTexture(i));
+					}
+
+					{
+						Texture2DDesc WantedDesc = GetDepthBuffer(i)->GetDesc();
+						WantedDesc.Width = SwapChainBuffer->GetDesc().Width;
+						WantedDesc.Height = SwapChainBuffer->GetDesc().Height;
+
+						delete GetDepthBuffer(i);
+						delete GetDepthStencilView(i);
+						GetDepthBuffer(i) = new Texture2D(WantedDesc);
+						GetDepthStencilView(i) = new DepthStencilView(GetDepthBuffer(i));
+					}
 				}
 			}
 		}
@@ -615,9 +669,11 @@ namespace Floodlight {
 		Texture2D* SwapChainBuffer = GetSwapChainBuffer(Frame);
 		Texture2D* IndirectTexture = GetIndirectTexture(Frame);
 		RenderTargetView* RTV = GetIndirectRTV(Frame);
+		DepthStencilView* DSV = GetDepthStencilView(Frame);
 
-		BindRenderTargets(&RTV, 1);
+		BindRenderTargets(&RTV, 1, DSV);
 		RTV->Clear(float4(0.6f, 0.2f, 0.6f, 1.0f));
+		DSV->Clear(1.0f);
 
 		/*
 			Bind the descriptor heap
@@ -700,6 +756,12 @@ namespace Floodlight {
 		persist DescriptorHeap Heap;
 		return Heap;
 	}
+
+    DescriptorHeap& D3DContext::GetDSVDescriptorHeap()
+    {
+		persist DescriptorHeap Heap;
+		return Heap;
+    }
 
 	/*
 		Return the current swap chain buffer index.

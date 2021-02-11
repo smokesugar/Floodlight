@@ -47,6 +47,7 @@ namespace Floodlight {
 		CommandList& GetCommandList();
 		DescriptorHeap& GetCBVSRVUAVDescriptorHeap();
 		DescriptorHeap& GetRTVDescriptorHeap();
+		DescriptorHeap& GetDSVDescriptorHeap();
 		uint32 GetSwapChainBufferIndex();
 	}
 

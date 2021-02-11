@@ -10,8 +10,9 @@ namespace Floodlight {
 	using DescriptorHeapType = int;
 	enum _DescriptorHeapType
 	{
-		DescriptorHeapType_CBV_SRV_UAV = 0,
-		DescriptorHeapType_RTV = 2,
+		DescriptorHeapType_CBV_SRV_UAV = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+		DescriptorHeapType_RTV = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
+		DescriptorHeapType_DSV = D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
 	};
 
 	/*

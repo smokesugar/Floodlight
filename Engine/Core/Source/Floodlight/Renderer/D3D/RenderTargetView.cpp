@@ -7,12 +7,11 @@ namespace Floodlight {
 
 	RenderTargetView::RenderTargetView(const Texture2D* Parent)
 	{
-		Init(Parent->Resource);
-	}
+		FL_Assert(Parent->GetDesc().Flags & TextureFlag_RenderTarget, "Cannot create a render target with this texture; it was not specified with the render target flag.");
 
-	RenderTargetView::RenderTargetView(ID3D12Resource* Parent)
-	{
-		Init(Parent);
+		ParentResource = Parent->Resource;
+		DescriptorIndex = D3DContext::GetRTVDescriptorHeap().GetNewIndex();
+		D3DContext::GetDevice()->CreateRenderTargetView(ParentResource, nullptr, D3DContext::GetRTVDescriptorHeap().GetCPUHandleAtIndex(DescriptorIndex));
 	}
 
 	RenderTargetView::~RenderTargetView()
@@ -35,19 +34,11 @@ namespace Floodlight {
 		return D3DContext::GetRTVDescriptorHeap().GetCPUHandleAtIndex(DescriptorIndex);
 	}
 
-	void
-	RenderTargetView::Init(ID3D12Resource* Parent)
-	{
-		ParentResource = Parent;
-		DescriptorIndex = D3DContext::GetRTVDescriptorHeap().GetNewIndex();
-		D3DContext::GetDevice()->CreateRenderTargetView(Parent, nullptr, D3DContext::GetRTVDescriptorHeap().GetCPUHandleAtIndex(DescriptorIndex));
-	}
-
 	/*
 		Take an array of render targets and bind them.
 	*/
 	void
-	BindRenderTargets(RenderTargetView** RenderTargets, uint32 NumRenderTargets)
+	BindRenderTargets(RenderTargetView** RenderTargets, uint32 NumRenderTargets, DepthStencilView* DSV)
 	{
 		std::vector<D3D12_CPU_DESCRIPTOR_HANDLE> RTVHandles;
 		for (uint32 i = 0; i < NumRenderTargets; i++)
@@ -56,7 +47,15 @@ namespace Floodlight {
 			TransitionResourceState(RenderTargets[i]->GetParentResource(), D3D12_RESOURCE_STATE_RENDER_TARGET);
 		}
 		
-		D3DContext::GetCommandList().Get()->OMSetRenderTargets(NumRenderTargets, RTVHandles.data(), false, nullptr);
+		if (DSV)
+		{
+			TransitionResourceState(DSV->GetParentResource(), D3D12_RESOURCE_STATE_DEPTH_WRITE | D3D12_RESOURCE_STATE_DEPTH_WRITE);
+			D3DContext::GetCommandList().Get()->OMSetRenderTargets(NumRenderTargets, RTVHandles.data(), false, &DSV->GetCPUHandle());
+		}
+		else
+		{
+			D3DContext::GetCommandList().Get()->OMSetRenderTargets(NumRenderTargets, RTVHandles.data(), false, nullptr);
+		}
 	}
 
 }
