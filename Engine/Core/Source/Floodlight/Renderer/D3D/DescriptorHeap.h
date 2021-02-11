@@ -7,6 +7,13 @@
 
 namespace Floodlight {
 
+	using DescriptorHeapType = int;
+	enum _DescriptorHeapType
+	{
+		DescriptorHeapType_CBV_SRV_UAV = 0,
+		DescriptorHeapType_RTV = 2,
+	};
+
 	/*
 		Used to allocate D3D descriptors.
 	*/
@@ -16,7 +23,7 @@ namespace Floodlight {
 		DescriptorHeap();
 		~DescriptorHeap();
 
-		void Init(uint32 Count);
+		void Init(DescriptorHeapType Type, uint32 Count);
 		void Release();
 
 		uint32 GetNewIndex();

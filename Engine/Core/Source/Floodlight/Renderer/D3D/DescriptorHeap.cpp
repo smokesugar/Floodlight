@@ -18,17 +18,17 @@ namespace Floodlight {
 		Create the D3D descriptor heap based on a maximum count;
 	*/
     void
-	DescriptorHeap::Init(uint32 Count)
+	DescriptorHeap::Init(DescriptorHeapType Type, uint32 Count)
     {
 		MaxCount = Count;
 
 		D3D12_DESCRIPTOR_HEAP_DESC Desc = {};
 		Desc.NumDescriptors = MaxCount;
-		Desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		Desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		Desc.Type = (D3D12_DESCRIPTOR_HEAP_TYPE)Type;
+		Desc.Flags = Type == DescriptorHeapType_CBV_SRV_UAV ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 		Desc.NodeMask = 0;
 
-		D3DDescriptorSize = D3DContext::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		D3DDescriptorSize = D3DContext::GetDevice()->GetDescriptorHandleIncrementSize(Desc.Type);
 
 		D3DContext::GetDevice()->CreateDescriptorHeap(&Desc, IID_PPV_ARGS(&Heap));
     }
@@ -67,6 +67,7 @@ namespace Floodlight {
 	*/
 	void DescriptorHeap::FreeIndex(uint32 Index)
 	{
+		FL_Assert(Index < Counter && std::find(Holes.begin(), Holes.end(), Index) == Holes.end(), "Invalid index to free.");
 		Holes.push_back(Index);
 	}
 

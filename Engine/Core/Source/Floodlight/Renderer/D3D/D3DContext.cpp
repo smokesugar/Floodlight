@@ -8,6 +8,8 @@
 #include "Floodlight/Utilities/Math.h"
 #include "VertexBuffer.h"
 #include "IndexBuffer.h"
+#include "RenderTargetView.h"
+#include "ResourceState.h"
 
 namespace Floodlight {
 
@@ -60,31 +62,22 @@ namespace Floodlight {
 		return SwapChain;
 	}
 
-	confined ID3D12Resource*&
+	confined Texture2D*&
 	GetSwapChainBuffer(uint32 Index)
 	{
-		persist ID3D12Resource* Buffers[D3DContext::SwapChainBufferCount];
+		persist Texture2D* Buffers[D3DContext::SwapChainBufferCount];
 		FL_Assert(Index < D3DContext::SwapChainBufferCount, "Index out of bounds.");
 		return Buffers[Index];
-	}
-
-	confined ID3D12DescriptorHeap*&
-	GetRTVDescriptorHeap()
-	{
-		persist ID3D12DescriptorHeap* DescHeap = nullptr;
-		return DescHeap;
 	}
 
 	/*
 		Retrieve the current render target view.
 	*/
-	confined D3D12_CPU_DESCRIPTOR_HANDLE
+	confined RenderTargetView*&
 	GetRTV(uint32 Index)
 	{
-		uint32 DescriptorSize = D3DContext::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-		auto handle = GetRTVDescriptorHeap()->GetCPUDescriptorHandleForHeapStart();
-		IncrementDescriptorHandle(&handle, DescriptorSize*Index);
-		return handle;
+		persist RenderTargetView* RTVs[D3DContext::SwapChainBufferCount];
+		return RTVs[Index];
 	}
 
 	/*
@@ -140,25 +133,12 @@ namespace Floodlight {
 	confined void
 	CreateRTVsAndPopulateSwapChainBuffers()
 	{
-		{ // Create the descriptor heap for the render target views
-			D3D12_DESCRIPTOR_HEAP_DESC Desc = {};
-			Desc.NumDescriptors = D3DContext::SwapChainBufferCount;
-			Desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-			Desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-			Desc.NodeMask = 0;
-			HResultCall(D3DContext::GetDevice()->CreateDescriptorHeap(&Desc, IID_PPV_ARGS(&GetRTVDescriptorHeap())));
-		}
-
-		{ // Retrieve all the swap-chain buffers and create the render target views
-			uint32 DescriptorSize = D3DContext::GetDevice()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-			D3D12_CPU_DESCRIPTOR_HANDLE RTVHeapPtr = GetRTVDescriptorHeap()->GetCPUDescriptorHandleForHeapStart();
-
-			for (uint32 i = 0; i < D3DContext::SwapChainBufferCount; i++)
-			{
-				HResultCall(GetSwapChain()->GetBuffer(i, IID_PPV_ARGS(&GetSwapChainBuffer(i))));
-				D3DContext::GetDevice()->CreateRenderTargetView(GetSwapChainBuffer(i), nullptr, RTVHeapPtr);
-				IncrementDescriptorHandle(&RTVHeapPtr, DescriptorSize);
-			}
+		for (uint32 i = 0; i < D3DContext::SwapChainBufferCount; i++)
+		{
+			ID3D12Resource* Texture = nullptr;
+			HResultCall(GetSwapChain()->GetBuffer(i, IID_PPV_ARGS(&Texture)));
+			GetSwapChainBuffer(i) = new Texture2D(Texture);
+			GetRTV(i) = new RenderTargetView(GetSwapChainBuffer(i));
 		}
 	}
 
@@ -232,6 +212,20 @@ namespace Floodlight {
 	{
 		persist ConstantBuffer* CB = nullptr;
 		return CB;
+	}
+
+	confined Texture2D*&
+	GetIndirectTexture(uint32 Index)
+	{
+		persist Texture2D* Textures[D3DContext::SwapChainBufferCount];
+		return Textures[Index];
+	}
+
+	confined RenderTargetView*&
+	GetIndirectRTV(uint32 Index)
+	{
+		persist RenderTargetView* RTVS[D3DContext::SwapChainBufferCount];
+		return RTVS[Index];
 	}
 
 	confined ID3DBlob*
@@ -405,6 +399,18 @@ namespace Floodlight {
 		{ // Create MVP constant buffer
 			GetMVPConstantBuffer() = new ConstantBuffer(sizeof(matrix));
 		}
+
+		{ // Create indirect render targets
+			Texture2DDesc Desc = {};
+			Desc.Width = 800;
+			Desc.Height = 600;
+			Desc.Format = RGBA8_UNORM;
+			Desc.Flags = TextureFlag_RenderTarget;
+			for (uint32 i = 0; i < D3DContext::SwapChainBufferCount; i++) {
+				GetIndirectTexture(i) = new Texture2D(Desc);
+				GetIndirectRTV(i) = new RenderTargetView(GetIndirectTexture(i));
+			}
+		}
 	}
 
 	/*
@@ -413,6 +419,12 @@ namespace Floodlight {
 	confined void
 	ReleaseAssets()
 	{
+		for (uint32 i = 0; i < D3DContext::SwapChainBufferCount; i++)
+		{
+			delete GetIndirectTexture(i);
+			delete GetIndirectRTV(i);
+		}
+
 		delete GetMVPConstantBuffer();
 		delete GetIndexBuffer();
 		delete GetVertexBuffer();
@@ -458,7 +470,8 @@ namespace Floodlight {
 		GetCommandList().Init(SwapChainBufferCount);
 
 		// Create the descriptor heaps
-		GetCBVSRVUAVDescriptorHeap().Init(200);
+		GetCBVSRVUAVDescriptorHeap().Init(DescriptorHeapType_CBV_SRV_UAV, 200);
+		GetRTVDescriptorHeap().Init(DescriptorHeapType_RTV, 20);
 
 		{ // Create the D3D swap-chain
 			RECT ClientRect;
@@ -488,13 +501,15 @@ namespace Floodlight {
 
 		ReleaseAssets();
 
-		for (uint32 i = 0; i < SwapChainBufferCount; i++)
-			GetSwapChainBuffer(i)->Release();
+		for (uint32 i = 0; i < SwapChainBufferCount; i++) {
+			delete GetSwapChainBuffer(i);
+			delete GetRTV(i);
+		}
 
-		GetRTVDescriptorHeap()->Release();
 		GetSwapChain()->Release();
 		GetCommandList().Release();
 		GetCBVSRVUAVDescriptorHeap().Release();
+		GetRTVDescriptorHeap().Release();
 		GetFence()->Release();
 		GetDevice()->Release();
 	}
@@ -507,9 +522,10 @@ namespace Floodlight {
 	{
 		WaitForCommandQueueToFlush(GetCommandList().GetCommandQueue());
 
-		GetRTVDescriptorHeap()->Release();
-		for (uint32 i = 0; i < SwapChainBufferCount; i++)
-			GetSwapChainBuffer(i)->Release();
+		for (uint32 i = 0; i < SwapChainBufferCount; i++) {
+			delete GetSwapChainBuffer(i);
+			delete GetRTV(i);
+		}
 
 		GetSwapChain()->ResizeBuffers(0, Width, Height, DXGI_FORMAT_UNKNOWN, 0);
 		CreateRTVsAndPopulateSwapChainBuffers();
@@ -552,22 +568,6 @@ namespace Floodlight {
 	}
 
 	/*
-		Create a transition resource barrier.
-	*/
-	confined D3D12_RESOURCE_BARRIER
-	CreateTransitionBarrier(ID3D12Resource* Resource, D3D12_RESOURCE_STATES Start, D3D12_RESOURCE_STATES End)
-	{
-		D3D12_RESOURCE_BARRIER Barrier = {};
-		Barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-		Barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		Barrier.Transition.pResource = Resource;
-		Barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-		Barrier.Transition.StateBefore = Start;
-		Barrier.Transition.StateAfter = End;
-		return Barrier;
-	}
-
-	/*
 		Flush command queue and do other shit.
 	*/
 	void
@@ -578,12 +578,6 @@ namespace Floodlight {
 		*/
 		uint32 Frame = GetSwapChain()->GetCurrentBackBufferIndex();
 		GetCommandList().NewFrame(Frame);
-		
-		/*
-			Indicate that we are rendering to the render target.
-		*/
-		D3D12_RESOURCE_BARRIER BarrierToRenderTarget = CreateTransitionBarrier(GetSwapChainBuffer(Frame), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-		GetCommandList().Get()->ResourceBarrier(1, &BarrierToRenderTarget);
 
 		/*
 			Bind the pipeline state and graphics root signature.
@@ -594,12 +588,36 @@ namespace Floodlight {
 		/*
 			Set viewports and clear and bind the render target.
 		*/
-		auto RTV = GetRTV(Frame);
-		float4 ClearColor(0.6f, 0.2f, 0.6f, 1.0f);
 		SetViewport(0.0f, 0.0f, (float)Width, (float)Height);
 		SetScissor(0, 0, Width, Height);
-		GetCommandList().Get()->ClearRenderTargetView(RTV, FloatPtr(ClearColor), 0, nullptr);
-		GetCommandList().Get()->OMSetRenderTargets(1, &RTV, false, nullptr);
+
+		
+		{ // Resize the texture if required
+			Texture2D* SwapChainBuffer = GetSwapChainBuffer(Frame);
+			Texture2D* IndirectTexture = GetIndirectTexture(Frame);
+			if (!AreTextureDescDimensionsAndFormatsTheSame(SwapChainBuffer->GetDesc(), IndirectTexture->GetDesc()))
+			{
+				Texture2DDesc WantedDesc = IndirectTexture->GetDesc();
+				WantedDesc.Width = SwapChainBuffer->GetDesc().Width;
+				WantedDesc.Height = SwapChainBuffer->GetDesc().Height;
+				WantedDesc.Format = SwapChainBuffer->GetDesc().Format;
+				FL_Info("Resizing render target.");
+				for (uint32 i = 0; i < SwapChainBufferCount; i++)
+				{
+					delete GetIndirectTexture(i);
+					delete GetIndirectRTV(i);
+					GetIndirectTexture(i) = new Texture2D(WantedDesc);
+					GetIndirectRTV(i) = new RenderTargetView(GetIndirectTexture(i));
+				}
+			}
+		}
+
+		Texture2D* SwapChainBuffer = GetSwapChainBuffer(Frame);
+		Texture2D* IndirectTexture = GetIndirectTexture(Frame);
+		RenderTargetView* RTV = GetIndirectRTV(Frame);
+
+		BindRenderTargets(&RTV, 1);
+		RTV->Clear(float4(0.6f, 0.2f, 0.6f, 1.0f));
 
 		/*
 			Bind the descriptor heap
@@ -620,11 +638,6 @@ namespace Floodlight {
 		}
 
 		/*
-			Do cbuffer update queue for this frame.
-		*/
-		ConstantBuffer::DoUpdateQueue(GetSwapChainBufferIndex());
-
-		/*
 			Bind vertices and draw.
 		*/
 		VertexBuffer::Bind(GetVertexBuffer());
@@ -632,11 +645,18 @@ namespace Floodlight {
 		GetCommandList().Get()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		GetCommandList().Get()->DrawIndexedInstanced(GetIndexBuffer()->GetCount(), 1, 0, 0, 0);
 
+		// Blit to the current swap chain buffer.
+		Texture2D::Copy(SwapChainBuffer, IndirectTexture);
+
 		/*
 			Indicate that we are presenting the render target.
 		*/
-		D3D12_RESOURCE_BARRIER BarrierToPresent = CreateTransitionBarrier(GetSwapChainBuffer(Frame), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-		GetCommandList().Get()->ResourceBarrier(1, &BarrierToPresent);
+		TransitionResourceState(SwapChainBuffer->Get(), D3D12_RESOURCE_STATE_PRESENT);
+
+		/*
+			Do cbuffer update queue for this frame.
+		*/
+		ConstantBuffer::DoUpdateQueue(GetSwapChainBufferIndex());
 
 		/*
 			Indicate we are finished with recording commands
@@ -673,6 +693,13 @@ namespace Floodlight {
 		persist DescriptorHeap Heap;
 		return Heap;
     }
+
+	DescriptorHeap&
+	D3DContext::GetRTVDescriptorHeap()
+	{
+		persist DescriptorHeap Heap;
+		return Heap;
+	}
 
 	/*
 		Return the current swap chain buffer index.
