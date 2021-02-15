@@ -2,6 +2,7 @@
 
 #include <d3d12.h>
 
+#include "GPUResource.h"
 #include "Floodlight/Utilities/IntTypes.h"
 #include "Floodlight/Utilities/Bit.h"
 
@@ -41,7 +42,7 @@ namespace Floodlight {
 	public:
 		Texture2D(Texture2DDesc Desc);
 		// This class owns the ID3D12Resource
-		Texture2D(ID3D12Resource* Res, TextureFlags Flags);
+		Texture2D(GPUResource* Res, TextureFlags Flags);
 		~Texture2D();
 
 		Texture2D(const Texture2D&) = delete;
@@ -49,11 +50,11 @@ namespace Floodlight {
 
 		static void Copy(const Texture2D* Dest, const Texture2D* Src);
 
-		inline ID3D12Resource* Get() const { return Resource; }
+		inline GPUResource* GetResource() const { return Resource; }
 		inline const Texture2DDesc& GetDesc() const { return TexDesc; }
 	private:
 		Texture2DDesc TexDesc;
-		ID3D12Resource* Resource = nullptr;
+		GPUResource* Resource = nullptr;
 	};
 
 }

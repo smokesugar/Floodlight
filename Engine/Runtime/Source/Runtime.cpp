@@ -4,7 +4,6 @@
 #include "Floodlight/Utilities/Math.h"
 #include "Floodlight/System/ECSRegistry.h"
 #include "Floodlight/Renderer/D3D/Texture.h"
-#include "Floodlight/Renderer/D3D/ResourceState.h"
 
 namespace Floodlight {
 

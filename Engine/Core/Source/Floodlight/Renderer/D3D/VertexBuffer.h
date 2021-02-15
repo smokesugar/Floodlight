@@ -3,6 +3,7 @@
 #include <d3d12.h>
 
 #include "Floodlight/Utilities/IntTypes.h"
+#include "GPUResource.h"
 
 namespace Floodlight {
 
@@ -21,7 +22,7 @@ namespace Floodlight {
 		inline uint32 GetCount() const { return Count; }
 		static void Bind(const VertexBuffer* Buffer);
 	private:
-		ID3D12Resource* Buffer = nullptr;
+		GPUResource* Buffer = nullptr;
 		D3D12_VERTEX_BUFFER_VIEW View = {};
 		uint32 Count = 0;
 	};

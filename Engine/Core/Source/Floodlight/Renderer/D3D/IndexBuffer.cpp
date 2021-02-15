@@ -33,30 +33,25 @@ namespace Floodlight {
 		ResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
 		// Create the object
-		D3DContext::GetDevice()->CreateCommittedResource(
-			&HeapProps, D3D12_HEAP_FLAG_NONE,
-			&ResourceDesc,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(&Buffer)
-		);
+		Buffer = new GPUResource(HeapProps, ResourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ);
+		Buffer->IncrementRef();
 
 		// Upload the index data
 		void* BufferData = nullptr;
 		D3D12_RANGE ReadRange = {};
-		Buffer->Map(0, &ReadRange, &BufferData);
+		Buffer->Raw()->Map(0, &ReadRange, &BufferData);
 		memcpy(BufferData, Indices, SizeBytes);
-		Buffer->Unmap(0, nullptr);
+		Buffer->Raw()->Unmap(0, nullptr);
 
 		// Create the view
-		View.BufferLocation = Buffer->GetGPUVirtualAddress();
+		View.BufferLocation = Buffer->Raw()->GetGPUVirtualAddress();
 		View.SizeInBytes = SizeBytes;
 		View.Format = DXGI_FORMAT_R32_UINT;
 	}
 
 	IndexBuffer::~IndexBuffer()
 	{
-		Buffer->Release();
+		Buffer->DecrementRef();
 	}
 
 	/*

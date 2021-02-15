@@ -9,14 +9,13 @@
 #include "VertexBuffer.h"
 #include "IndexBuffer.h"
 #include "RenderTargetView.h"
-#include "ResourceState.h"
 
 namespace Floodlight {
 
 	/*
 		In debug mode, break on failure.
 	*/
-	confined void
+	void
 	HResultCall(HRESULT HR)
 	{
 		_com_error Err(HR);
@@ -71,16 +70,6 @@ namespace Floodlight {
 	}
 
 	/*
-		Retrieve the current render target view.
-	*/
-	confined RenderTargetView*&
-	GetSwapChainRTV(uint32 Index)
-	{
-		persist RenderTargetView* RTVs[D3DContext::SwapChainBufferCount];
-		return RTVs[Index];
-	}
-
-	/*
 		Stall until a command queue is empty.
 	*/
 	void
@@ -131,14 +120,14 @@ namespace Floodlight {
 		Create render target views and populate buffer storage
 	*/
 	confined void
-	CreateRTVsAndPopulateSwapChainBuffers()
+	PopulateSwapChainBuffers()
 	{
 		for (uint32 i = 0; i < D3DContext::SwapChainBufferCount; i++)
 		{
 			ID3D12Resource* Texture = nullptr;
 			HResultCall(GetSwapChain()->GetBuffer(i, IID_PPV_ARGS(&Texture)));
-			GetSwapChainBuffer(i) = new Texture2D(Texture, TextureFlag_RenderTarget);
-			GetSwapChainRTV(i) = new RenderTargetView(GetSwapChainBuffer(i));
+			GPUResource* Res = new GPUResource(Texture, D3D12_RESOURCE_STATE_COMMON);
+			GetSwapChainBuffer(i) = new Texture2D(Res, TextureFlag_RenderTarget);
 		}
 	}
 
@@ -180,17 +169,10 @@ namespace Floodlight {
 #endif
 	}
 
-	confined ID3D12RootSignature*&
-	GetRootSignature()
-	{
-		persist ID3D12RootSignature* Signature = nullptr;
-		return Signature;
-	}
-
-	confined ID3D12PipelineState*&
+	confined PipelineState*&
 	GetPipelineState()
 	{
-		persist ID3D12PipelineState* PSO = nullptr;
+		persist PipelineState* PSO = nullptr;
 		return PSO;
 	}
 
@@ -216,35 +198,28 @@ namespace Floodlight {
 	}
 
 	confined Texture2D*&
-	GetIndirectTexture(uint32 Index)
+	GetIndirectTexture()
 	{
-		persist Texture2D* Textures[D3DContext::SwapChainBufferCount];
-		return Textures[Index];
+		persist Texture2D* Texture = nullptr;
+		return Texture;
 	}
 
 	confined RenderTargetView*&
-	GetIndirectRTV(uint32 Index)
+	GetIndirectRTV()
 	{
-		persist RenderTargetView* RTVS[D3DContext::SwapChainBufferCount];
-		return RTVS[Index];
-	}
-
-	confined Texture2D*&
-	GetDepthBuffer(uint32 Index)
-	{
-		persist Texture2D* Textures[D3DContext::SwapChainBufferCount];
-		return Textures[Index];
+		persist RenderTargetView* RTV = nullptr;
+		return RTV;
 	}
 
 	confined DepthStencilView*&
-	GetDepthStencilView(uint32 Index)
+	GetDepthStencilView()
 	{
-		persist DepthStencilView* DSVs[D3DContext::SwapChainBufferCount];
-		return DSVs[Index];
+		persist DepthStencilView* DSV = nullptr;
+		return DSV;
 	}
 
 	confined void
-	CreateDepthBuffers(uint32 Width, uint32 Height)
+	CreateDepthBuffer(uint32 Width, uint32 Height)
 	{
 		Texture2DDesc Desc = {};
 		Desc.Width = Width;
@@ -252,38 +227,9 @@ namespace Floodlight {
 		Desc.Format = D32_FLOAT;
 		Desc.Flags = TextureFlag_DepthStencil;
 
-		for (uint32 i = 0; i < D3DContext::SwapChainBufferCount; i++)
-		{
-			GetDepthBuffer(i) = new Texture2D(Desc);
-			GetDepthStencilView(i) = new DepthStencilView(GetDepthBuffer(i));
-		}
-	}
-
-	confined ID3DBlob*
-	CompileShader(const wchar_t* File, const char* EntryPoint, const char* Profile)
-	{
-		#ifdef NDEBUG
-			UINT CompileFlags = 0;
-		#else
-			UINT CompileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;;
-		#endif
-
-		ID3DBlob* ShaderBlob = nullptr;
-		ID3DBlob* ErrorBlob = nullptr;
-		HRESULT HR = D3DCompileFromFile(File, nullptr, D3D_COMPILE_STANDARD_FILE_INCLUDE, EntryPoint, Profile, 0, 0, &ShaderBlob, &ErrorBlob);
-
-		if (FAILED(HR)) {
-			if (ErrorBlob) {
-				FL_Assert(false, "{0}", (const char*)ErrorBlob->GetBufferPointer());
-			}
-			else {
-				_com_error Err(HR);
-				FL_Assert(false, "Failed to compile shader: {0}", Err.ErrorMessage());
-			}
-		}
-
-		if (ErrorBlob) ErrorBlob->Release();
-		return ShaderBlob;
+		Texture2D* DepthBuffer = new Texture2D(Desc);
+		GetDepthStencilView() = new DepthStencilView(DepthBuffer);
+		delete DepthBuffer;
 	}
 
 	/*
@@ -292,105 +238,11 @@ namespace Floodlight {
 	confined void
 	InitializeAssets()
 	{
-		{ // Create an empty root signature
-			D3D12_DESCRIPTOR_RANGE Ranges[1];
-
-			Ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-			Ranges[0].NumDescriptors = 1;
-			Ranges[0].BaseShaderRegister = 0;
-			Ranges[0].RegisterSpace = 0;
-			Ranges[0].OffsetInDescriptorsFromTableStart = 0;
-
-			D3D12_ROOT_PARAMETER Params[1];
-
-			Params[0] = {};
-			Params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-			Params[0].DescriptorTable.NumDescriptorRanges = 1;
-			Params[0].DescriptorTable.pDescriptorRanges = &Ranges[0];
-
-			D3D12_ROOT_SIGNATURE_DESC Desc = {};
-			Desc.NumParameters = (uint32)std::size(Params);
-			Desc.pParameters = Params;
-			Desc.NumStaticSamplers = 0;
-			Desc.pStaticSamplers = nullptr;
-			Desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-
-			ID3DBlob* Signature;
-			ID3DBlob* Error;
-
-			HResultCall(D3D12SerializeRootSignature(&Desc, D3D_ROOT_SIGNATURE_VERSION_1, &Signature, &Error));
-			HResultCall(D3DContext::GetDevice()->CreateRootSignature(0, Signature->GetBufferPointer(), Signature->GetBufferSize(), IID_PPV_ARGS(&GetRootSignature())));
-
-			if (Error)
-				Error->Release();
-			Signature->Release();
-		}
-
-		{ // Create shaders and pipeline state
-			ID3DBlob* VertexShader = CompileShader(L"Resources/Shaders/TestShader.hlsl", "VSMain", "vs_5_0");
-			ID3DBlob* PixelShader = CompileShader(L"Resources/Shaders/TestShader.hlsl", "PSMain", "ps_5_0");
-
-			D3D12_INPUT_ELEMENT_DESC InputLayout[] =
-			{
-				{ "Position", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-				{ "Color", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-			};
-
-			D3D12_GRAPHICS_PIPELINE_STATE_DESC PSODesc = {};
-
-			// Input layout
-			PSODesc.InputLayout.NumElements = (uint32)std::size(InputLayout);
-			PSODesc.InputLayout.pInputElementDescs = InputLayout;
-			PSODesc.pRootSignature = GetRootSignature();
-
-			// Shaders
-			PSODesc.VS.pShaderBytecode = VertexShader->GetBufferPointer();
-			PSODesc.VS.BytecodeLength = VertexShader->GetBufferSize();
-			PSODesc.PS.pShaderBytecode = PixelShader->GetBufferPointer();
-			PSODesc.PS.BytecodeLength = PixelShader->GetBufferSize();
-
-			// Rasterizer State
-			PSODesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-			PSODesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
-			PSODesc.RasterizerState.FrontCounterClockwise = FALSE;
-			PSODesc.RasterizerState.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
-			PSODesc.RasterizerState.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
-			PSODesc.RasterizerState.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
-			PSODesc.RasterizerState.DepthClipEnable = TRUE;
-			PSODesc.RasterizerState.MultisampleEnable = FALSE;
-			PSODesc.RasterizerState.AntialiasedLineEnable = FALSE;
-			PSODesc.RasterizerState.ForcedSampleCount = 0;
-			PSODesc.RasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
-
-			// Blend State
-			PSODesc.BlendState.AlphaToCoverageEnable = FALSE;
-			PSODesc.BlendState.IndependentBlendEnable = FALSE;
-			const D3D12_RENDER_TARGET_BLEND_DESC defaultRenderTargetBlendDesc =
-			{
-				FALSE,FALSE,
-				D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
-				D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
-				D3D12_LOGIC_OP_NOOP,
-				D3D12_COLOR_WRITE_ENABLE_ALL,
-			};
-			for (UINT i = 0; i < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++i)
-				PSODesc.BlendState.RenderTarget[i] = defaultRenderTargetBlendDesc;
-
-			// Depth Stencil State
-			PSODesc.DepthStencilState.DepthEnable = TRUE;
-			PSODesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
-			PSODesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-			PSODesc.DSVFormat = (DXGI_FORMAT)D32_FLOAT;
-			PSODesc.SampleMask = UINT_MAX;
-			PSODesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-			PSODesc.NumRenderTargets = 1;
-			PSODesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-			PSODesc.SampleDesc = { 1, 0 };
-
-			HResultCall(D3DContext::GetDevice()->CreateGraphicsPipelineState(&PSODesc, IID_PPV_ARGS(&GetPipelineState())));
-
-			VertexShader->Release();
-			PixelShader->Release();
+		{ // Create pipeline state
+			PipelineStateDesc Desc = {};
+			Desc.VertexShader = L"Resources/Shaders/TestShader_v.hlsl";
+			Desc.PixelShader = L"Resources/Shaders/TestShader_p.hlsl";
+			GetPipelineState() = new PipelineState(Desc);
 		}
 
 		{ // Create the vertex buffer
@@ -439,12 +291,11 @@ namespace Floodlight {
 			Desc.Height = 600;
 			Desc.Format = RGBA8_UNORM;
 			Desc.Flags = TextureFlag_RenderTarget;
-			for (uint32 i = 0; i < D3DContext::SwapChainBufferCount; i++) {
-				GetIndirectTexture(i) = new Texture2D(Desc);
-				GetIndirectRTV(i) = new RenderTargetView(GetIndirectTexture(i));
-			}
+			
+			GetIndirectTexture() = new Texture2D(Desc);
+			GetIndirectRTV() = new RenderTargetView(GetIndirectTexture());
 
-			CreateDepthBuffers(Desc.Width, Desc.Height);
+			CreateDepthBuffer(Desc.Width, Desc.Height);
 		}
 	}
 
@@ -454,19 +305,15 @@ namespace Floodlight {
 	confined void
 	ReleaseAssets()
 	{
-		for (uint32 i = 0; i < D3DContext::SwapChainBufferCount; i++)
-		{
-			delete GetIndirectTexture(i);
-			delete GetIndirectRTV(i);
-			delete GetDepthBuffer(i);
-			delete GetDepthStencilView(i);
-		}
+		delete GetIndirectTexture();
+		delete GetIndirectRTV();
+		delete GetDepthStencilView();
 
 		delete GetMVPConstantBuffer();
 		delete GetIndexBuffer();
 		delete GetVertexBuffer();
-		GetPipelineState()->Release();
-		GetRootSignature()->Release();
+
+		delete GetPipelineState();
 	}
 
 	confined bool&
@@ -517,7 +364,7 @@ namespace Floodlight {
 			uint32 Width = ClientRect.right - ClientRect.left;
 			uint32 Height = ClientRect.bottom - ClientRect.top;
 			CreateSwapChain(Window, Width, Height);
-			CreateRTVsAndPopulateSwapChainBuffers();
+			PopulateSwapChainBuffers();
 		}
 
 		InitializeAssets();
@@ -539,9 +386,9 @@ namespace Floodlight {
 
 		ReleaseAssets();
 
-		for (uint32 i = 0; i < SwapChainBufferCount; i++) {
+		for (uint32 i = 0; i < SwapChainBufferCount; i++)
+		{
 			delete GetSwapChainBuffer(i);
-			delete GetSwapChainRTV(i);
 		}
 
 		GetSwapChain()->Release();
@@ -561,13 +408,13 @@ namespace Floodlight {
 	{
 		WaitForCommandQueueToFlush(GetCommandList().GetCommandQueue());
 
-		for (uint32 i = 0; i < SwapChainBufferCount; i++) {
+		for (uint32 i = 0; i < SwapChainBufferCount; i++)
+		{
 			delete GetSwapChainBuffer(i);
-			delete GetSwapChainRTV(i);
 		}
 
 		GetSwapChain()->ResizeBuffers(0, Width, Height, DXGI_FORMAT_UNKNOWN, 0);
-		CreateRTVsAndPopulateSwapChainBuffers();
+		PopulateSwapChainBuffers();
 	}
 
 	bool
@@ -621,8 +468,7 @@ namespace Floodlight {
 		/*
 			Bind the pipeline state and graphics root signature.
 		*/
-		GetCommandList().Get()->SetGraphicsRootSignature(GetRootSignature());
-		GetCommandList().Get()->SetPipelineState(GetPipelineState());
+		PipelineState::Bind(GetPipelineState());
 
 		/*
 			Set viewports and clear and bind the render target.
@@ -633,43 +479,42 @@ namespace Floodlight {
 		
 		{ // Resize the texture if required
 			Texture2D* SwapChainBuffer = GetSwapChainBuffer(Frame);
-			Texture2D* IndirectTexture = GetIndirectTexture(Frame);
+			Texture2D* IndirectTexture = GetIndirectTexture();
 			if (!AreTextureDescDimensionsAndFormatsTheSame(SwapChainBuffer->GetDesc(), IndirectTexture->GetDesc()))
 			{
 				FL_Info("Resizing render target.");
 
-				for (uint32 i = 0; i < SwapChainBufferCount; i++)
 				{
-					{
-						Texture2DDesc WantedDesc = GetIndirectTexture(i)->GetDesc();
-						WantedDesc.Width = SwapChainBuffer->GetDesc().Width;
-						WantedDesc.Height = SwapChainBuffer->GetDesc().Height;
-						WantedDesc.Format = SwapChainBuffer->GetDesc().Format;
+					Texture2DDesc WantedDesc = GetIndirectTexture()->GetDesc();
+					WantedDesc.Width = SwapChainBuffer->GetDesc().Width;
+					WantedDesc.Height = SwapChainBuffer->GetDesc().Height;
+					WantedDesc.Format = SwapChainBuffer->GetDesc().Format;
 
-						delete GetIndirectTexture(i);
-						delete GetIndirectRTV(i);
-						GetIndirectTexture(i) = new Texture2D(WantedDesc);
-						GetIndirectRTV(i) = new RenderTargetView(GetIndirectTexture(i));
-					}
+					delete GetIndirectTexture();
+					delete GetIndirectRTV();
+					GetIndirectTexture() = new Texture2D(WantedDesc);
+					GetIndirectRTV() = new RenderTargetView(GetIndirectTexture());
+				}
 
-					{
-						Texture2DDesc WantedDesc = GetDepthBuffer(i)->GetDesc();
-						WantedDesc.Width = SwapChainBuffer->GetDesc().Width;
-						WantedDesc.Height = SwapChainBuffer->GetDesc().Height;
+				{
+					Texture2DDesc WantedDesc = {};
+					WantedDesc.Width = SwapChainBuffer->GetDesc().Width;
+					WantedDesc.Height = SwapChainBuffer->GetDesc().Height;
+					WantedDesc.Format = D32_FLOAT;
+					WantedDesc.Flags = TextureFlag_DepthStencil;
 
-						delete GetDepthBuffer(i);
-						delete GetDepthStencilView(i);
-						GetDepthBuffer(i) = new Texture2D(WantedDesc);
-						GetDepthStencilView(i) = new DepthStencilView(GetDepthBuffer(i));
-					}
+					delete GetDepthStencilView();
+					Texture2D* DepthBuffer = new Texture2D(WantedDesc);
+					GetDepthStencilView() = new DepthStencilView(DepthBuffer);
+					delete DepthBuffer;
 				}
 			}
 		}
 
 		Texture2D* SwapChainBuffer = GetSwapChainBuffer(Frame);
-		Texture2D* IndirectTexture = GetIndirectTexture(Frame);
-		RenderTargetView* RTV = GetIndirectRTV(Frame);
-		DepthStencilView* DSV = GetDepthStencilView(Frame);
+		Texture2D* IndirectTexture = GetIndirectTexture();
+		RenderTargetView* RTV = GetIndirectRTV();
+		DepthStencilView* DSV = GetDepthStencilView();
 
 		BindRenderTargets(&RTV, 1, DSV);
 		RTV->Clear(float4(0.6f, 0.2f, 0.6f, 1.0f));
@@ -707,7 +552,7 @@ namespace Floodlight {
 		/*
 			Indicate that we are presenting the render target.
 		*/
-		TransitionResourceState(SwapChainBuffer->Get(), D3D12_RESOURCE_STATE_PRESENT);
+		SwapChainBuffer->GetResource()->TransitionState(D3D12_RESOURCE_STATE_PRESENT);
 
 		/*
 			Do cbuffer update queue for this frame.

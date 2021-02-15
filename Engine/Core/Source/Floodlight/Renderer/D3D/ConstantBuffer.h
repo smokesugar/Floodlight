@@ -5,6 +5,7 @@
 
 #include "Floodlight/Utilities/IntTypes.h"
 #include "Floodlight/Utilities/Keywords.h"
+#include "GPUResource.h"
 
 namespace Floodlight {
 
@@ -46,7 +47,7 @@ namespace Floodlight {
 		uint32 IndividualSizeBytes; // Size of each padded instance in the buffer.
 		uint32 TotalSizeBytes;  // Total size of the allocated buffer.
 		std::vector<uint32> DescriptorHeapIndices; // The indices into the descriptor heap.
-		ID3D12Resource* Buffer = nullptr; // The D3D buffer.
+		GPUResource* Buffer = nullptr; // The D3D buffer.
 	};
 
 }

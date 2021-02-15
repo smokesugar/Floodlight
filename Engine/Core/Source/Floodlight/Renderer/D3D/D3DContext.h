@@ -9,11 +9,13 @@
 #include "CommandList.h"
 #include "DescriptorHeap.h"
 #include "ConstantBuffer.h"
+#include "PipelineState.h"
 
 #define cbuffer struct
 
 namespace Floodlight {
 
+	void HResultCall(HRESULT HR);
 	void IncrementDescriptorHandle(D3D12_CPU_DESCRIPTOR_HANDLE* Handle, int32 Amount);
 	void IncrementDescriptorHandle(D3D12_GPU_DESCRIPTOR_HANDLE* Handle, int32 Amount);
 	uint32 PadConstantBufferSize(uint32 Size);

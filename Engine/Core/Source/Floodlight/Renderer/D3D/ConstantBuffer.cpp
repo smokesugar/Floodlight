@@ -19,10 +19,10 @@ namespace Floodlight {
 		// Upload the data
 		D3D12_RANGE ReadRange = {};
 		uint8* BufferData;
-		Buffer->Buffer->Map(0, &ReadRange, (void**)&BufferData);
+		Buffer->Buffer->Raw()->Map(0, &ReadRange, (void**)&BufferData);
 		uint32 ByteOffset = Buffer->IndividualSizeBytes * FrameIndex;
 		memcpy(BufferData + ByteOffset, Obj->Data, Obj->SizeBytes);
-		Buffer->Buffer->Unmap(0, nullptr);
+		Buffer->Buffer->Raw()->Unmap(0, nullptr);
 
 		// Say if we should remove it from the queue
 		return Obj->Counter == 0;
@@ -68,7 +68,8 @@ namespace Floodlight {
 		ResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 		ResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
 
-		D3DContext::GetDevice()->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE, &ResourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&Buffer));
+		Buffer = new GPUResource(HeapProps, ResourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ);
+		Buffer->IncrementRef();
 
 		// Create the constant buffer views
 		for (uint32 i = 0; i < D3DContext::SwapChainBufferCount; i++) {
@@ -78,7 +79,7 @@ namespace Floodlight {
 			//Then we create the views in those slots.
 			D3D12_CONSTANT_BUFFER_VIEW_DESC CBVDesc = {};
 			D3D12_GPU_DESCRIPTOR_HANDLE Handle;
-			Handle.ptr = Buffer->GetGPUVirtualAddress();
+			Handle.ptr = Buffer->Raw()->GetGPUVirtualAddress();
 			IncrementDescriptorHandle(&Handle, i * IndividualSizeBytes);
 			CBVDesc.BufferLocation = Handle.ptr;
 			CBVDesc.SizeInBytes = IndividualSizeBytes;
@@ -91,7 +92,7 @@ namespace Floodlight {
 		// Free our slot in the descriptor heap.
 		for (auto& Index : DescriptorHeapIndices)
 			D3DContext::GetCBVSRVUAVDescriptorHeap().FreeIndex(Index);
-		Buffer->Release();
+		Buffer->DecrementRef();
 	}
 
 	/*

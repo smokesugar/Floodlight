@@ -7,13 +7,15 @@ namespace Floodlight {
 	DepthStencilView::DepthStencilView(const Texture2D* Parent)
 	{
 		ParentResource = Parent->Resource;
+		ParentResource->IncrementRef();
 		DescriptorIndex = D3DContext::GetDSVDescriptorHeap().GetNewIndex();
-		D3DContext::GetDevice()->CreateDepthStencilView(ParentResource, nullptr, GetCPUHandle());
+		D3DContext::GetDevice()->CreateDepthStencilView(ParentResource->Raw(), nullptr, GetCPUHandle());
 	}
 
 	DepthStencilView::~DepthStencilView()
 	{
 		D3DContext::GetDSVDescriptorHeap().FreeIndex(DescriptorIndex);
+		ParentResource->DecrementRef();
 	}
 
 	D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView::GetCPUHandle() const

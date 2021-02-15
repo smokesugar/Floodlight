@@ -22,10 +22,10 @@ namespace Floodlight {
 		void Clear(float4 Color);
 
 		D3D12_CPU_DESCRIPTOR_HANDLE GetCPUHandle() const;
-		inline ID3D12Resource* GetParentResource() const { return ParentResource; }
+		inline GPUResource* GetParentResource() const { return ParentResource; }
 	private:
 		uint32 DescriptorIndex = 0;
-		ID3D12Resource* ParentResource;
+		GPUResource* ParentResource = nullptr;
 	};
 
 	void BindRenderTargets(RenderTargetView** RenderTargets, uint32 NumRenderTargets, DepthStencilView* DSV);

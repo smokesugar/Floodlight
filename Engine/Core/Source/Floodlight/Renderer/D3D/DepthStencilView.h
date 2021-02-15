@@ -13,7 +13,7 @@ namespace Floodlight {
 		~DepthStencilView();
 
 		D3D12_CPU_DESCRIPTOR_HANDLE GetCPUHandle() const;
-		inline ID3D12Resource* GetParentResource() const { return ParentResource; }
+		inline GPUResource* GetParentResource() const { return ParentResource; }
 
 		void Clear(float Depth);
 
@@ -21,7 +21,7 @@ namespace Floodlight {
 		inline void operator=(const DepthStencilView&) = delete;
 	private:
 		uint32 DescriptorIndex = 0;
-		ID3D12Resource* ParentResource = nullptr;
+		GPUResource* ParentResource = nullptr;
 	};
 
 }

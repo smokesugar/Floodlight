@@ -1,7 +1,6 @@
 #include "Texture.h"
 
 #include "D3DContext.h"
-#include "ResourceState.h"
 
 namespace Floodlight {
 
@@ -32,16 +31,17 @@ namespace Floodlight {
 		ResDesc.Flags = (RenderTarget ? D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET : D3D12_RESOURCE_FLAG_NONE) | (DepthStencil ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL : D3D12_RESOURCE_FLAG_NONE);
 
 		D3D12_RESOURCE_STATES ResourceState = D3D12_RESOURCE_STATE_COMMON;
-		D3DContext::GetDevice()->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE, &ResDesc, ResourceState, nullptr, IID_PPV_ARGS(&Resource));
-		GetResourceState(Resource) = ResourceState;
+		Resource = new GPUResource(HeapProps, ResDesc, ResourceState);
+		Resource->IncrementRef();
 	}
 
-	Texture2D::Texture2D(ID3D12Resource* Res, TextureFlags Flags)
+	Texture2D::Texture2D(GPUResource* Res, TextureFlags Flags)
 	{
 		Resource = Res;
+		Resource->IncrementRef();
 
 		// Create a descriptor from the resource.
-		D3D12_RESOURCE_DESC DxDesc = Res->GetDesc();
+		D3D12_RESOURCE_DESC DxDesc = Res->Raw()->GetDesc();
 		TexDesc.Width = (uint32)DxDesc.Width;
 		TexDesc.Height = (uint32)DxDesc.Height;
 		TexDesc.Format = DxDesc.Format;
@@ -50,16 +50,16 @@ namespace Floodlight {
 
 	Texture2D::~Texture2D()
 	{
-		Resource->Release();
+		Resource->DecrementRef();
 	}
 
     void Texture2D::Copy(const Texture2D* Dest, const Texture2D* Src)
     {
 		FL_Assert(AreTextureDescDimensionsAndFormatsTheSame(Dest->GetDesc(), Src->GetDesc()), "Trying to copy a texture when the destination and source have mismatching dimensions/formats.");
 
-		TransitionResourceState(Dest->Get(), D3D12_RESOURCE_STATE_COPY_DEST);
-		TransitionResourceState(Src->Get(), D3D12_RESOURCE_STATE_COPY_SOURCE);
-		D3DContext::GetCommandList().Get()->CopyResource(Dest->Resource, Src->Resource);
+		Dest->Resource->TransitionState(D3D12_RESOURCE_STATE_COPY_DEST);
+		Src->Resource->TransitionState(D3D12_RESOURCE_STATE_COPY_SOURCE);
+		D3DContext::GetCommandList().Get()->CopyResource(Dest->Resource->Raw(), Src->Resource->Raw());
     }
 
 }
