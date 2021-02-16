@@ -1,8 +1,9 @@
 #pragma once
 
+#include "Floodlight/Utilities/IntTypes.h"
+
 namespace Floodlight {
 	
-	// Called in EntryPoint.h
 	void EngineStart();
 
 }

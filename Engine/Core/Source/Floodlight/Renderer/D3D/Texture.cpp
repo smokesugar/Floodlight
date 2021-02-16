@@ -53,7 +53,17 @@ namespace Floodlight {
 		Resource->DecrementRef();
 	}
 
-    void Texture2D::Copy(const Texture2D* Dest, const Texture2D* Src)
+    void
+	Texture2D::UploadData(void* Data, uint32 SizeBytes)
+    {
+		//D3DContext::GetCommandList().Get()->CopyTextureRegion();
+    }
+
+	/*
+		Issue a command to copy the contents of one texture to another.
+	*/
+    void
+	Texture2D::Copy(const Texture2D* Dest, const Texture2D* Src)
     {
 		FL_Assert(AreTextureDescDimensionsAndFormatsTheSame(Dest->GetDesc(), Src->GetDesc()), "Trying to copy a texture when the destination and source have mismatching dimensions/formats.");
 

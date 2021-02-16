@@ -14,4 +14,7 @@ namespace Floodlight {
 	HWND CreateWin32Window(WindowDesc Desc);
 	void PollWin32Events();
 
+	HWND& GetMainWindow();
+	void GetMainWindowSize(uint32* Width, uint32* Height);
+
 }

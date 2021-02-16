@@ -147,9 +147,6 @@ namespace Floodlight {
 		UpdateObj& Obj = UpdateQueue[Buffer];
 		Obj.Counter = D3DContext::SwapChainBufferCount;
 		memcpy(Obj.Data, Data, SizeBytes);
-
-		// Update now
-		//DoUpdateObj(Buffer, &Obj, D3DContext::GetSwapChainBufferIndex());
 	}
 
 	/*

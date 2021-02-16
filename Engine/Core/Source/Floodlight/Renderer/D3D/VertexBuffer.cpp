@@ -60,6 +60,7 @@ namespace Floodlight {
 	void
 	VertexBuffer::Bind(const VertexBuffer* Buffer)
 	{
+		D3DContext::GetCommandList().Get()->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		D3DContext::GetCommandList().Get()->IASetVertexBuffers(0, 1, &Buffer->View);
 	}
 

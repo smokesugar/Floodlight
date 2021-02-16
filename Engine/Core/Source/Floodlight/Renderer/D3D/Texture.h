@@ -39,6 +39,7 @@ namespace Floodlight {
 	{
 		friend class RenderTargetView;
 		friend class DepthStencilView;
+		friend class ShaderResourceView;
 	public:
 		Texture2D(Texture2DDesc Desc);
 		// This class owns the ID3D12Resource
@@ -47,6 +48,8 @@ namespace Floodlight {
 
 		Texture2D(const Texture2D&) = delete;
 		inline void operator=(const Texture2D&) = delete;
+
+		void UploadData(void* Data, uint32 SizeBytes);
 
 		static void Copy(const Texture2D* Dest, const Texture2D* Src);
 

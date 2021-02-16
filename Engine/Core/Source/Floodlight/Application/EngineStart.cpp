@@ -7,6 +7,7 @@
 #include "Floodlight/Input/MouseInput.h"
 #include "Floodlight/Input/KeyboardInput.h"
 #include "Floodlight/Renderer/D3D/D3DContext.h"
+#include "Time.h"
 
 namespace Floodlight {
 
@@ -28,30 +29,13 @@ namespace Floodlight {
 		ResetApplicationEvents();
 	}
 
-	confined void
-	GetWindowDimensions(HWND Window, uint32* Width, uint32* Height)
-	{
-		LPARAM LParam = (LPARAM)GetWindowLongPtr(Window, GWLP_USERDATA);
-		*Width = LOWORD(LParam);
-		*Height = HIWORD(LParam);
-	}
-
-	confined double
-	GetTime()
-	{
-		LARGE_INTEGER time, freq;
-		QueryPerformanceCounter(&time);
-		QueryPerformanceFrequency(&freq);
-		return (double)time.QuadPart / (double)freq.QuadPart;
-	}
-
 	void
 	EngineStart()
 	{
 		// Initialize core engine
 
-		HWND Window = InitializeWindow();
-		D3DContext::Init(Window);
+		GetMainWindow() = InitializeWindow();
+		D3DContext::Init(GetMainWindow());
 
 		Application* Instance = CreateFloodlightInstance();
 
@@ -59,24 +43,15 @@ namespace Floodlight {
 
 		while (!WasWindowClosed())
 		{
-			// Calculate delta time
-			persist double LastTime = GetTime();
-			double Time = GetTime();
-			double DeltaTime = Time - LastTime;
-			LastTime = Time;
+			Time::NewFrame();
 
-			persist double TimeAccum = 0;
-			TimeAccum += DeltaTime;
-
-			// Call the client's tick method
+			D3DContext::BeginFrame();
 			Instance->Tick();
+			D3DContext::EndFrame();
+
 			// Reset and collect all events
 			ResetAllEvents();
 			PollWin32Events();
-
-			uint32 Width, Height;
-			GetWindowDimensions(Window, &Width, &Height);
-			D3DContext::Render(Width, Height, (float)DeltaTime, (float)TimeAccum);
 		}
 
 		// Clean up core engine

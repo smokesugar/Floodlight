@@ -148,4 +148,26 @@ namespace Floodlight {
 		}
 	}
 
+	/*
+		Global window.
+	*/
+	HWND&
+	GetMainWindow()
+	{
+		persist HWND Window;
+		return Window;
+	}
+
+	/*
+		Function to return the size of the main window.
+	*/
+	void
+	GetMainWindowSize(uint32* Width, uint32* Height)
+	{
+		RECT ClientRect;
+		GetClientRect(GetMainWindow(), &ClientRect);
+		*Width = ClientRect.right - ClientRect.left;
+		*Height = ClientRect.bottom - ClientRect.top;
+	}
+
 }

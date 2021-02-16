@@ -94,11 +94,90 @@ namespace Floodlight {
 		return IED;
 	}
 
-	//confined D3D12_ROOT_SIGNATURE_DESC
-	//ExtractRootSignature(ID3D12ShaderReflection* VSReflection)
-	//{
-	//	
-	//}
+	confined D3D12_DESCRIPTOR_RANGE_TYPE
+	ShaderInputTypeToRangeDescriptorType(D3D_SHADER_INPUT_TYPE Type)
+	{
+		switch (Type)
+		{
+		case D3D_SIT_CBUFFER:
+			return D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+		case D3D_SIT_TEXTURE:
+			return D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+		case D3D_SIT_SAMPLER:
+			return D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER;
+		}
+
+		FL_Assert(false, "Invalid D3D_SHADER_INPUT_TYPE.");
+		return D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+	}
+
+	confined D3D12_DESCRIPTOR_RANGE
+	ExtractRangeDesc(D3D12_SHADER_INPUT_BIND_DESC BindDesc)
+	{
+		D3D12_DESCRIPTOR_RANGE RangeDesc = {};
+		RangeDesc.RangeType = ShaderInputTypeToRangeDescriptorType(BindDesc.Type);
+		RangeDesc.NumDescriptors = 1;
+		RangeDesc.BaseShaderRegister = BindDesc.BindPoint;
+		RangeDesc.RegisterSpace = 0;
+		RangeDesc.OffsetInDescriptorsFromTableStart = 0;
+		return RangeDesc;
+	}
+
+	confined D3D12_ROOT_PARAMETER
+	ExtractRootParameter(D3D12_DESCRIPTOR_RANGE* Range, D3D12_SHADER_VISIBILITY Visibility)
+	{
+		D3D12_ROOT_PARAMETER Param = {};
+		Param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+		Param.DescriptorTable.NumDescriptorRanges = 1;
+		Param.DescriptorTable.pDescriptorRanges = Range;
+		Param.ShaderVisibility = Visibility;
+		return Param;
+	}
+
+	confined D3D12_ROOT_SIGNATURE_DESC
+	ExtractRootSignature(ID3D12ShaderReflection* VSReflection, ID3D12ShaderReflection* PSReflection, std::vector<D3D12_DESCRIPTOR_RANGE>* pRanges, std::vector<D3D12_ROOT_PARAMETER>* pParameters)
+	{
+		auto& Ranges = *pRanges;
+		auto& Parameters = *pParameters;
+
+		D3D12_SHADER_DESC VSDesc;
+		VSReflection->GetDesc(&VSDesc);
+
+		D3D12_SHADER_DESC PSDesc;
+		PSReflection->GetDesc(&PSDesc);
+
+		uint32 Count = VSDesc.BoundResources + PSDesc.BoundResources;
+		Ranges.resize(Count);
+		Parameters.resize(Count);
+
+		for (uint32 i = 0; i < VSDesc.BoundResources; i++)
+		{
+			D3D12_SHADER_INPUT_BIND_DESC BindDesc;
+			VSReflection->GetResourceBindingDesc(i, &BindDesc);
+
+			uint32 Index = i;
+			Ranges[Index] = ExtractRangeDesc(BindDesc);
+			Parameters[Index] = ExtractRootParameter(&Ranges[Index], D3D12_SHADER_VISIBILITY_VERTEX);
+		}
+
+		for (uint32 i = 0; i < PSDesc.BoundResources; i++)
+		{
+			D3D12_SHADER_INPUT_BIND_DESC BindDesc;
+			PSReflection->GetResourceBindingDesc(i, &BindDesc);
+
+			uint32 Index = VSDesc.BoundResources +  i;
+			Ranges[Index] = ExtractRangeDesc(BindDesc);
+			Parameters[Index] = ExtractRootParameter(&Ranges[Index], D3D12_SHADER_VISIBILITY_PIXEL);
+		}
+
+		D3D12_ROOT_SIGNATURE_DESC RootSigDesc = {};
+		RootSigDesc.NumParameters = Parameters.size();
+		RootSigDesc.pParameters = Parameters.data();
+		RootSigDesc.NumStaticSamplers = 0;
+		RootSigDesc.pStaticSamplers = nullptr;
+		RootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+		return RootSigDesc;
+	}
 
 	/*
 		Pipeline state constructor. Create a root signature and pipeline state object by shader reflection.
@@ -111,31 +190,14 @@ namespace Floodlight {
 
 		// Create reflections
 		ID3D12ShaderReflection* VSReflection = nullptr;
+		ID3D12ShaderReflection* PSReflection = nullptr;
 		D3DReflect(VertexShader->GetBufferPointer(), VertexShader->GetBufferSize(), IID_PPV_ARGS(&VSReflection));
+		D3DReflect(PixelShader->GetBufferPointer(), PixelShader->GetBufferSize(), IID_PPV_ARGS(&PSReflection));
 
 		{ // Create the root signature
-			D3D12_DESCRIPTOR_RANGE Ranges[1];
-
-			Ranges[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-			Ranges[0].NumDescriptors = 1;
-			Ranges[0].BaseShaderRegister = 0;
-			Ranges[0].RegisterSpace = 0;
-			Ranges[0].OffsetInDescriptorsFromTableStart = 0;
-
-			D3D12_ROOT_PARAMETER Params[1];
-
-			Params[0] = {};
-			Params[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-			Params[0].DescriptorTable.NumDescriptorRanges = 1;
-			Params[0].DescriptorTable.pDescriptorRanges = &Ranges[0];
-			Params[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-
-			D3D12_ROOT_SIGNATURE_DESC Desc = {};
-			Desc.NumParameters = (uint32)std::size(Params);
-			Desc.pParameters = Params;
-			Desc.NumStaticSamplers = 0;
-			Desc.pStaticSamplers = nullptr;
-			Desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+			std::vector<D3D12_DESCRIPTOR_RANGE> Ranges;
+			std::vector<D3D12_ROOT_PARAMETER> Parameters;
+			D3D12_ROOT_SIGNATURE_DESC Desc = ExtractRootSignature(VSReflection, PSReflection, &Ranges, &Parameters);
 
 			ID3DBlob* Blob = nullptr;
 			ID3DBlob* Error = nullptr;
@@ -208,6 +270,7 @@ namespace Floodlight {
 
 		// Release outstanding references
 		VSReflection->Release();
+		PSReflection->Release();
 		VertexShader->Release();
 		PixelShader->Release();
 	}

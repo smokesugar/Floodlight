@@ -10,6 +10,7 @@
 #include "DescriptorHeap.h"
 #include "ConstantBuffer.h"
 #include "PipelineState.h"
+#include "Texture.h"
 
 #define cbuffer struct
 
@@ -34,13 +35,14 @@ namespace Floodlight {
 		void Shutdown();
 		void ResizeSwapChain(uint32 Width, uint32 Height);
 		bool IsInitialized();
+		void BeginFrame();
+		void EndFrame();
 
 		/*
 			Behavior
 		*/
 		void SetViewport(float X, float Y, float Width, float Height);
 		void SetScissor(uint32 X, uint32 Y, uint32 Width, uint32 Height);
-		void Render(uint32 Width, uint32 Height, float DeltaTime, float Time);
 
 		/*
 			Accessors
@@ -51,6 +53,7 @@ namespace Floodlight {
 		DescriptorHeap& GetRTVDescriptorHeap();
 		DescriptorHeap& GetDSVDescriptorHeap();
 		uint32 GetSwapChainBufferIndex();
+		Texture2D*& GetBackBuffer();
 	}
 
 }
