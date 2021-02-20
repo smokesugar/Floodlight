@@ -210,6 +210,7 @@ namespace Floodlight {
 		GetCBVSRVUAVDescriptorHeap().Init(DescriptorHeapType_CBV_SRV_UAV, 200);
 		GetRTVDescriptorHeap().Init(DescriptorHeapType_RTV, 20);
 		GetDSVDescriptorHeap().Init(DescriptorHeapType_DSV, 20);
+		GetSamplerDescriptorHeap().Init(DescriptorHeapType_Sampler, 10);
 
 		{ // Create the D3D swap-chain
 			RECT ClientRect;
@@ -241,10 +242,14 @@ namespace Floodlight {
 		}
 
 		GetSwapChain()->Release();
+
 		GetCommandList().Release();
+
 		GetCBVSRVUAVDescriptorHeap().Release();
 		GetRTVDescriptorHeap().Release();
 		GetDSVDescriptorHeap().Release();
+		GetSamplerDescriptorHeap().Release();
+
 		GetFence()->Release();
 		GetDevice()->Release();
 	}
@@ -278,7 +283,10 @@ namespace Floodlight {
 		uint32 Frame = GetSwapChain()->GetCurrentBackBufferIndex();
 		GetCommandList().NewFrame(Frame);
 
-		BindDescriptorHeap(&GetCBVSRVUAVDescriptorHeap());
+		DescriptorHeap* Arr[2];
+		Arr[0] = &GetCBVSRVUAVDescriptorHeap();
+		Arr[1] = &GetSamplerDescriptorHeap();
+		DescriptorHeap::Bind(Arr, 2);
 	}
 
 	void
@@ -353,7 +361,15 @@ namespace Floodlight {
 		return Heap;
 	}
 
-    DescriptorHeap& D3DContext::GetDSVDescriptorHeap()
+    DescriptorHeap&
+	D3DContext::GetDSVDescriptorHeap()
+    {
+		persist DescriptorHeap Heap;
+		return Heap;
+    }
+
+    DescriptorHeap&
+	D3DContext::GetSamplerDescriptorHeap()
     {
 		persist DescriptorHeap Heap;
 		return Heap;

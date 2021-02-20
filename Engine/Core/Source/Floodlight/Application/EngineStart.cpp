@@ -36,6 +36,7 @@ namespace Floodlight {
 
 		GetMainWindow() = InitializeWindow();
 		D3DContext::Init(GetMainWindow());
+		D3DContext::BeginFrame();
 
 		Application* Instance = CreateFloodlightInstance();
 
@@ -44,14 +45,15 @@ namespace Floodlight {
 		while (!WasWindowClosed())
 		{
 			Time::NewFrame();
-
-			D3DContext::BeginFrame();
 			Instance->Tick();
+
 			D3DContext::EndFrame();
 
 			// Reset and collect all events
 			ResetAllEvents();
 			PollWin32Events();
+
+			D3DContext::BeginFrame();
 		}
 
 		// Clean up core engine

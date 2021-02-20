@@ -22,10 +22,12 @@ namespace Floodlight {
     {
 		MaxCount = Count;
 
+		bool ShaderVisible = Type == DescriptorHeapType_CBV_SRV_UAV || Type == DescriptorHeapType_Sampler;
+
 		D3D12_DESCRIPTOR_HEAP_DESC Desc = {};
 		Desc.NumDescriptors = MaxCount;
 		Desc.Type = (D3D12_DESCRIPTOR_HEAP_TYPE)Type;
-		Desc.Flags = Type == DescriptorHeapType_CBV_SRV_UAV ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+		Desc.Flags = ShaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 		Desc.NodeMask = 0;
 
 		D3DDescriptorSize = D3DContext::GetDevice()->GetDescriptorHandleIncrementSize(Desc.Type);
@@ -91,10 +93,14 @@ namespace Floodlight {
 		Issue a command to bind the descriptor heap.
 	*/
 	void
-	BindDescriptorHeap(const DescriptorHeap* Heap)
+	DescriptorHeap::Bind(DescriptorHeap** Heaps, uint32 Count)
 	{
-		ID3D12DescriptorHeap* TempArray[] = { Heap->Get() };
-		D3DContext::GetCommandList().Get()->SetDescriptorHeaps(1, TempArray);
+		std::vector<ID3D12DescriptorHeap*> Arr;
+		for (uint32 i = 0; i < Count; i++)
+		{
+			Arr.push_back(Heaps[i]->Heap);
+		}
+		D3DContext::GetCommandList().Get()->SetDescriptorHeaps(Count, Arr.data());
 	}
 
 }

@@ -1,36 +1,60 @@
 #include "Texture.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #include "D3DContext.h"
 
 namespace Floodlight {
 
+	/*
+		Utility function that returns the per pixel size of a texture format.
+	*/
+	uint32
+	TextureFormatBPP(TextureFormat Format)
+	{
+		switch (Format)
+		{
+		case RGBA8_UNORM:
+			return 4;
+		case D32_FLOAT:
+			return 4;
+		}
+
+		FL_Assert(false, "Invalid format.");
+		return 0;
+	}
+
+	/*
+		Texture2D constructor.
+	*/
 	Texture2D::Texture2D(Texture2DDesc Desc)
 	{
+		// Save the desc
 		TexDesc = Desc;
 
+		// Booleans that store the state of the flags.
 		bool RenderTarget = Desc.Flags & TextureFlag_RenderTarget;
 		bool DepthStencil = Desc.Flags & TextureFlag_DepthStencil;
+		bool Staging = Desc.Flags & TextureFlag_Staging;
 
-		D3D12_HEAP_PROPERTIES HeapProps = {};
-		HeapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
-		HeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-		HeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-		HeapProps.CreationNodeMask = 1;
-		HeapProps.VisibleNodeMask = 1;
+		// Heap properties
+		D3D12_HEAP_PROPERTIES HeapProps = CreateHeapProperties(Staging ? D3D12_HEAP_TYPE_UPLOAD : D3D12_HEAP_TYPE_DEFAULT);
+	
+		// Resource desc
+		D3D12_RESOURCE_FLAGS Flags = (RenderTarget ? D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET : D3D12_RESOURCE_FLAG_NONE) | (DepthStencil ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL : D3D12_RESOURCE_FLAG_NONE);
+		D3D12_RESOURCE_DESC ResDesc;
+		if (!Staging)
+		{
+			ResDesc = CreateTexture2DResourceDesc(Desc.Width, Desc.Height, (DXGI_FORMAT)Desc.Format, Flags);
+		}
+		else
+		{
+			ResDesc = CreateBufferResourceDesc(Desc.Width * Desc.Height * TextureFormatBPP(Desc.Format));
+		}
 
-		D3D12_RESOURCE_DESC ResDesc = {};
-		ResDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-		ResDesc.Alignment = 0;
-		ResDesc.Width = Desc.Width;
-		ResDesc.Height = Desc.Height;
-		ResDesc.DepthOrArraySize = 1;
-		ResDesc.MipLevels = 1;
-		ResDesc.Format = (DXGI_FORMAT)Desc.Format;
-		ResDesc.SampleDesc = { 1, 0 };
-		ResDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-		ResDesc.Flags = (RenderTarget ? D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET : D3D12_RESOURCE_FLAG_NONE) | (DepthStencil ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL : D3D12_RESOURCE_FLAG_NONE);
-
-		D3D12_RESOURCE_STATES ResourceState = D3D12_RESOURCE_STATE_COMMON;
+		// Resource creation
+		D3D12_RESOURCE_STATES ResourceState = Staging ? D3D12_RESOURCE_STATE_GENERIC_READ : D3D12_RESOURCE_STATE_COMMON;
 		Resource = new GPUResource(HeapProps, ResDesc, ResourceState);
 		Resource->IncrementRef();
 	}
@@ -55,8 +79,39 @@ namespace Floodlight {
 
     void
 	Texture2D::UploadData(void* Data, uint32 SizeBytes)
-    {
-		//D3DContext::GetCommandList().Get()->CopyTextureRegion();
+    {	
+		// Create a staging texture that we will use to upload the data
+		Texture2DDesc StagingDesc = {};
+		StagingDesc.Width = TexDesc.Width;
+		StagingDesc.Height = TexDesc.Height;
+		StagingDesc.Format = TexDesc.Format;
+		StagingDesc.Flags = TextureFlag_Staging;
+		Texture2D* TempTexture = new Texture2D(StagingDesc);
+
+		// Upload the data to the staging texture
+		void* MappedData = nullptr;
+		D3D12_RANGE Range = {};
+		TempTexture->Resource->Raw()->Map(0, &Range, &MappedData);
+		memcpy(MappedData, Data, SizeBytes);
+		TempTexture->Resource->Raw()->Unmap(0, nullptr);
+
+		// Do a GPU copy to copy the contents to THIS texture.
+		D3D12_TEXTURE_COPY_LOCATION DestLoc = CreateTextureCopyLocation(Resource->Raw(), 0);
+
+		D3D12_PLACED_SUBRESOURCE_FOOTPRINT Footprint = {};
+		Footprint.Offset = 0;
+		Footprint.Footprint.Format = (DXGI_FORMAT)TexDesc.Format;
+		Footprint.Footprint.Width = TexDesc.Width;
+		Footprint.Footprint.Height = TexDesc.Height;
+		Footprint.Footprint.Depth = 1;
+		Footprint.Footprint.RowPitch = TexDesc.Width * TextureFormatBPP(TexDesc.Format);
+
+		D3D12_TEXTURE_COPY_LOCATION SrcLoc = CreateTextureCopyLocation(TempTexture->Resource->Raw(), Footprint);
+
+		D3DContext::GetCommandList().Get()->CopyTextureRegion(&DestLoc, 0, 0, 0, &SrcLoc, nullptr);
+
+		// Free the staging texture
+		D3DContext::GetCommandList().DestroyTexture2D(TempTexture);
     }
 
 	/*
@@ -70,6 +125,28 @@ namespace Floodlight {
 		Dest->Resource->TransitionState(D3D12_RESOURCE_STATE_COPY_DEST);
 		Src->Resource->TransitionState(D3D12_RESOURCE_STATE_COPY_SOURCE);
 		D3DContext::GetCommandList().Get()->CopyResource(Dest->Resource->Raw(), Src->Resource->Raw());
+    }
+
+	/*
+		Publicly accessible function to load image data from non-native formats (png, jpg, bmp, etc.).
+	*/
+    uint8*
+	LoadNonNativeTexture(const char* FilePath, uint32* Width, uint32* Height)
+    {
+		int W, H;
+		uint8* Data = stbi_load(FilePath, &W, &H, nullptr, 4);
+		FL_Assert(Data, "Failed to load non-native texture at: {0}", FilePath);
+		*Width = W;
+		*Height = H;
+		return Data;
+    }
+
+	/*
+		Free the memory allocated in the above function.
+	*/
+    void FreeNonNativeTexture(uint8* Data)
+    {
+		stbi_image_free(Data);
     }
 
 }

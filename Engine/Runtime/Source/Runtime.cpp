@@ -20,19 +20,53 @@ namespace Floodlight {
 		}
 
 		{ // Create the vertex buffer
-			float Vertices[] =
-			{
-				-0.5f,  0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 1.0f,
-				 0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f,
-				-0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f,
-				 0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 1.0f, 1.0f,
-				-0.5f,  0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 1.0f,
-				 0.5f,  0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 1.0f,
-				-0.5f, -0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 1.0f,
-				 0.5f, -0.5f,  0.5f, 0.0f, 1.0f, 1.0f, 1.0f,
+			float Vertices[] = {
+				-0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+				 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+				 0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
+				 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+				-0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+				-0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+
+				-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+				 0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+				 0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+				 0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
+				-0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
+				-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+				
+
+				-0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+				-0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+				-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+				-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+				-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+				-0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+
+				 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+				 0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+				 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+				 0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+				 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+				 0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+				
+
+				-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+				 0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
+				 0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+				 0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
+				-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+				-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+
+				 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+				 -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+				-0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
+				-0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+				 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+				 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
 			};
 
-			VBO = new VertexBuffer(Vertices, sizeof(Vertices), 7 * sizeof(float));
+			VBO = new VertexBuffer(Vertices, sizeof(Vertices), 5 * sizeof(float));
 		}
 
 		{ // Create the index buffer
@@ -84,17 +118,21 @@ namespace Floodlight {
 
 		{ // Create the shader resource view
 			Texture2DDesc Desc = {};
-			Desc.Width = 1;
-			Desc.Height = 1;
 			Desc.Format = RGBA8_UNORM;
 			Desc.Flags = 0;
 
-			uint8 ImageData[4] = { 255, 255, 255, 255 };
+			uint8* ImageData = LoadNonNativeTexture("Resources/Textures/tyler.jpg", &Desc.Width, &Desc.Height);
 
 			Texture2D* TempTexture = new Texture2D(Desc);
-			//TempTexture->UploadData(ImageData, sizeof(ImageData));
+			TempTexture->UploadData(ImageData, Desc.Width*Desc.Height*TextureFormatBPP(Desc.Format));
 			SRV = new ShaderResourceView(TempTexture);
 			delete TempTexture;
+
+			FreeNonNativeTexture(ImageData);
+		}
+
+		{ // Create the sampler state
+			Sampler = new SamplerState();
 		}
 	}
 
@@ -108,6 +146,7 @@ namespace Floodlight {
 		delete RTV;
 		delete DSV;
 		delete SRV;
+		delete Sampler;
 	}
 
 	void
@@ -160,16 +199,26 @@ namespace Floodlight {
 			Update the MVP constants and bind the buffer.
 		*/
 		float AspectRatio = (float)Width / (float)Height;
-		matrix MVP = XMMatrixRotationRollPitchYaw(ToRadians(Time::GetTime() * 121.0f), ToRadians(Time::GetTime() * 365.0f), 0.0f) * XMMatrixTranslation(0.0f, 0.0f, 2.0f) * XMMatrixPerspectiveFovLH(ToRadians(80.0f), AspectRatio, 0.1f, 100.0f);
+		matrix MVP = XMMatrixRotationRollPitchYaw(ToRadians(Time::GetTime() * 180.0f), ToRadians(Time::GetTime() * 90.0f), 0.0f) * XMMatrixTranslation(0.0f, 0.0f, 2.0f) * XMMatrixPerspectiveFovLH(ToRadians(80.0f), AspectRatio, 0.1f, 100.0f);
 		ConstantBuffer::Update(MVPCBO, &MVP, sizeof(MVP));
 		ConstantBuffer::Bind(MVPCBO, 0);
+
+		/*
+			Bind shader resource views
+		*/
+		ShaderResourceView::Bind(SRV, 2);
+
+		/*
+			Bind samplers
+		*/
+		SamplerState::Bind(Sampler, 1);
 
 		/*
 			Bind vertices and draw.
 		*/
 		VertexBuffer::Bind(VBO);
 		IndexBuffer::Bind(IBO);
-		D3DContext::GetCommandList().Get()->DrawIndexedInstanced(IBO->GetCount(), 1, 0, 0, 0);
+		D3DContext::GetCommandList().Get()->DrawInstanced(VBO->GetCount(), 1, 0, 0);
 
 		// Blit to the current swap chain buffer.
 		Texture2D::Copy(BackBuffer, IndirectTexture);

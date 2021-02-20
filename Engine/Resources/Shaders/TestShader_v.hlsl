@@ -6,10 +6,10 @@ cbuffer MVPConstants : register(b0)
 };
 
 VSOut
-main(float3 pos : Position, float4 col : Color)
+main(float3 pos : Position, float2 uv : TexCoord)
 {
     VSOut vso;
     vso.svpos = mul(MVP, float4(pos, 1.0f));
-    vso.col = col;
+    vso.uv = uv;
     return vso;
 }

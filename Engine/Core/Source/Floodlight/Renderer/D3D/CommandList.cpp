@@ -43,6 +43,7 @@ namespace Floodlight {
 		Lists.resize(Count);
 		Fences.resize(Count);
 		FenceValues.resize(Count);
+		Texture2DDeletionQueue.resize(Count);
 
 		for (uint32 i = 0; i < Count; i++)
 		{
@@ -66,6 +67,7 @@ namespace Floodlight {
 			Allocators[i]->Release();
 			Lists[i]->Release();
 			Fences[i]->Release();
+			FlushTexture2DDeletionQueue(i);
 		}
 	}
 
@@ -82,6 +84,10 @@ namespace Floodlight {
 		// Before we start recording using this command list, ensure it has flushed from previous use.
 		WaitForFenceToBeHit(Fences[Frame], FenceValues[Frame]);
 
+		// Do simulated queue items.
+		FlushTexture2DDeletionQueue(Frame);
+
+		// Reset D3D list.
 		Allocators[Frame]->Reset();
 		Lists[Frame]->Reset(Allocators[Frame], nullptr);
 	}
@@ -96,6 +102,25 @@ namespace Floodlight {
 		ID3D12CommandList* TempArray[] = { Lists[Frame] };
 		CommandQueue->ExecuteCommandLists(1, TempArray);
 		CommandQueue->Signal(Fences[Frame], ++FenceValues[Frame]);
+	}
+
+	/*
+		This function acts as if it was put on the d3d12 command list.
+	*/
+    void
+	CommandList::DestroyTexture2D(Texture2D* Texture)
+    {
+		Texture2DDeletionQueue[Frame].push_back(Texture);
+    }
+
+	void
+	CommandList::FlushTexture2DDeletionQueue(uint32 FrameIndex)
+	{
+		for (auto Tex : Texture2DDeletionQueue[FrameIndex])
+		{
+			delete Tex;
+		}
+		Texture2DDeletionQueue[FrameIndex] = {};
 	}
 
 }

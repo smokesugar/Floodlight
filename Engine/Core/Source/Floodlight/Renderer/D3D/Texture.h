@@ -14,10 +14,13 @@ namespace Floodlight {
 		D32_FLOAT = DXGI_FORMAT_D32_FLOAT
 	};
 
+	uint32 TextureFormatBPP(TextureFormat Format);
+
 	using TextureFlags = int;
 	enum _TextureFlags {
 		TextureFlag_RenderTarget = Bit(0),
 		TextureFlag_DepthStencil = Bit(1),
+		TextureFlag_Staging = Bit(2),
 	};
 
 	struct Texture2DDesc {
@@ -31,6 +34,9 @@ namespace Floodlight {
 	{
 		return A.Width == B.Width && A.Height == B.Height && A.Format == B.Format;
 	}
+
+	uint8* LoadNonNativeTexture(const char* FilePath, uint32* Width, uint32* Height);
+	void FreeNonNativeTexture(uint8* Data);
 
 	/*
 		The underlying resource for render target views, depth stencil views and shader resource views.

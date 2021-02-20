@@ -26,7 +26,7 @@ namespace Floodlight {
 	ShaderResourceView::Bind(const ShaderResourceView* SRV, uint32 Index)
 	{
 		auto Handle = D3DContext::GetCBVSRVUAVDescriptorHeap().GetGPUHandleAtIndex(SRV->DescriptorIndex);
-		D3DContext::GetCommandList().Get()->SetGraphicsRootShaderResourceView(Index, Handle.ptr);
+		D3DContext::GetCommandList().Get()->SetGraphicsRootDescriptorTable(Index, Handle);
 	}
 
 }

@@ -171,7 +171,7 @@ namespace Floodlight {
 		}
 
 		D3D12_ROOT_SIGNATURE_DESC RootSigDesc = {};
-		RootSigDesc.NumParameters = Parameters.size();
+		RootSigDesc.NumParameters = (uint32)Parameters.size();
 		RootSigDesc.pParameters = Parameters.data();
 		RootSigDesc.NumStaticSamplers = 0;
 		RootSigDesc.pStaticSamplers = nullptr;

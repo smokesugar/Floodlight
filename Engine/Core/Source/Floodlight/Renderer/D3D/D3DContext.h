@@ -52,6 +52,7 @@ namespace Floodlight {
 		DescriptorHeap& GetCBVSRVUAVDescriptorHeap();
 		DescriptorHeap& GetRTVDescriptorHeap();
 		DescriptorHeap& GetDSVDescriptorHeap();
+		DescriptorHeap& GetSamplerDescriptorHeap();
 		uint32 GetSwapChainBufferIndex();
 		Texture2D*& GetBackBuffer();
 	}

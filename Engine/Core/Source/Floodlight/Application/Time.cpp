@@ -5,8 +5,8 @@
 
 namespace Floodlight {
 
-	static double DeltaTime = 0.0f;
-	static double TimeAccum = 0.0f;
+	confined double DeltaTime = 0.0f;
+	confined double TimeAccum = 0.0f;
 
 	double
 	Win32GetTime()

@@ -9,6 +9,7 @@
 #include "Floodlight/Renderer/D3D/RenderTargetView.h"
 #include "Floodlight/Renderer/D3D/DepthStencilView.h"
 #include "Floodlight/Renderer/D3D/ShaderResourceView.h"
+#include "Floodlight/Renderer/D3D/SamplerState.h"
 
 namespace Floodlight {
 
@@ -27,6 +28,7 @@ namespace Floodlight {
 		RenderTargetView* RTV = nullptr;
 		DepthStencilView* DSV = nullptr;
 		ShaderResourceView* SRV = nullptr;
+		SamplerState* Sampler = nullptr;
 	};
 
 }

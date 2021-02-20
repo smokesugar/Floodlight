@@ -6,6 +6,12 @@
 
 namespace Floodlight {
 
+	D3D12_HEAP_PROPERTIES CreateHeapProperties(D3D12_HEAP_TYPE Type);
+	D3D12_RESOURCE_DESC CreateBufferResourceDesc(uint32 SizeBytes);
+	D3D12_RESOURCE_DESC CreateTexture2DResourceDesc(uint32 Width, uint32 Height, DXGI_FORMAT Format, D3D12_RESOURCE_FLAGS Flags);
+	D3D12_TEXTURE_COPY_LOCATION CreateTextureCopyLocation(ID3D12Resource* Resource, uint32 Subresource);
+	D3D12_TEXTURE_COPY_LOCATION CreateTextureCopyLocation(ID3D12Resource* Resource, const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& Footprint);
+
 	class GPUResource
 	{
 	public:
