@@ -36,24 +36,24 @@ namespace Floodlight {
 
 		GetMainWindow() = InitializeWindow();
 		D3DContext::Init(GetMainWindow());
-		D3DContext::BeginFrame();
 
+		D3DContext::GetCommandList().NewFrame(D3DContext::GetSwapChainBufferIndex());
 		Application* Instance = CreateFloodlightInstance();
+		D3DContext::GetCommandList().Execute();
 
 		// Tick loop
 
 		while (!WasWindowClosed())
 		{
 			Time::NewFrame();
-			Instance->Tick();
 
+			D3DContext::BeginFrame();
+			Instance->Tick();
 			D3DContext::EndFrame();
 
 			// Reset and collect all events
 			ResetAllEvents();
 			PollWin32Events();
-
-			D3DContext::BeginFrame();
 		}
 
 		// Clean up core engine
