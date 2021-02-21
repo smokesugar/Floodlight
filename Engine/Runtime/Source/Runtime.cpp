@@ -70,23 +70,13 @@ namespace Floodlight {
 		}
 
 		{ // Create the index buffer
-			uint32 Indices[] =
+			std::vector<uint32> Indices;
+			for (uint32 i = 0; i < 36; i++)
 			{
-				0, 1, 2,    // side 1
-				2, 1, 3,
-				4, 0, 6,    // side 2
-				6, 0, 2,
-				7, 5, 6,    // side 3
-				6, 5, 4,
-				3, 1, 7,    // side 4
-				7, 1, 5,
-				4, 5, 0,    // side 5
-				0, 5, 1,
-				3, 7, 2,    // side 6
-				2, 7, 6,
-			};
+				Indices.push_back(i);
+			}
 
-			IBO = new IndexBuffer(Indices, sizeof(Indices));
+			IBO = new IndexBuffer(Indices.data(), Indices.size()*4);
 		}
 
 		{ // Create MVP constant buffer
@@ -218,7 +208,7 @@ namespace Floodlight {
 		*/
 		VertexBuffer::Bind(VBO);
 		IndexBuffer::Bind(IBO);
-		D3DContext::GetCommandList().Get()->DrawInstanced(VBO->GetCount(), 1, 0, 0);
+		D3DContext::GetCommandList().Get()->DrawIndexedInstanced(IBO->GetCount(), 1, 0, 0, 0);
 
 		// Blit to the current swap chain buffer.
 		Texture2D::Copy(BackBuffer, IndirectTexture);

@@ -43,7 +43,8 @@ namespace Floodlight {
 		Lists.resize(Count);
 		Fences.resize(Count);
 		FenceValues.resize(Count);
-		Texture2DDeletionQueue.resize(Count);
+		Texture2DDestructionQueue.resize(Count);
+		GPUResourceDecrementQueue.resize(Count);
 
 		for (uint32 i = 0; i < Count; i++)
 		{
@@ -67,7 +68,7 @@ namespace Floodlight {
 			Allocators[i]->Release();
 			Lists[i]->Release();
 			Fences[i]->Release();
-			FlushTexture2DDeletionQueue(i);
+			FlushDeletionQueue(i);
 		}
 	}
 
@@ -85,7 +86,7 @@ namespace Floodlight {
 		WaitForFenceToBeHit(Fences[Frame], FenceValues[Frame]);
 
 		// Do simulated queue items.
-		FlushTexture2DDeletionQueue(Frame);
+		FlushDeletionQueue(Frame);
 
 		// Reset D3D list.
 		Allocators[Frame]->Reset();
@@ -108,19 +109,31 @@ namespace Floodlight {
 		This function acts as if it was put on the d3d12 command list.
 	*/
     void
-	CommandList::DestroyTexture2D(Texture2D* Texture)
+	CommandList::QueueTexture2DDestruction(Texture2D* Texture)
     {
-		Texture2DDeletionQueue[Frame].push_back(Texture);
+		Texture2DDestructionQueue[Frame].push_back(Texture);
     }
 
 	void
-	CommandList::FlushTexture2DDeletionQueue(uint32 FrameIndex)
+	CommandList::QueueGPUResourceDecrement(GPUResource* Resource)
 	{
-		for (auto Tex : Texture2DDeletionQueue[FrameIndex])
+		GPUResourceDecrementQueue[Frame].push_back(Resource);
+	}
+
+	void
+	CommandList::FlushDeletionQueue(uint32 FrameIndex)
+	{
+		for (auto Tex : Texture2DDestructionQueue[FrameIndex])
 		{
 			delete Tex;
 		}
-		Texture2DDeletionQueue[FrameIndex] = {};
+		Texture2DDestructionQueue[FrameIndex] = {};
+
+		for (auto Res : GPUResourceDecrementQueue[FrameIndex])
+		{
+			Res->DecrementRef();
+		}
+		GPUResourceDecrementQueue[FrameIndex] = {};
 	}
 
 }

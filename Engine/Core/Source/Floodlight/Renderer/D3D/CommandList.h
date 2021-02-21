@@ -25,7 +25,9 @@ namespace Floodlight {
 		void Execute();
 
 		// Only use this if you want to defer the deletion of a texture.
-		void DestroyTexture2D(Texture2D* Texture);
+		void QueueTexture2DDestruction(Texture2D* Texture);
+		// Only use this if you want to defer the decrement of a GPUResource.
+		void QueueGPUResourceDecrement(GPUResource* Resource);
 
 		inline ID3D12GraphicsCommandList* Get() { return Lists[Frame]; }
 		inline ID3D12CommandQueue* GetCommandQueue() const { return CommandQueue; }
@@ -34,7 +36,7 @@ namespace Floodlight {
 		CommandList(const CommandList&) = delete;
 		void operator=(const CommandList&) = delete;
 	private:
-		void FlushTexture2DDeletionQueue(uint32 FrameIndex);
+		void FlushDeletionQueue(uint32 FrameIndex);
 	private:
 		uint32 Count;
 		uint32 Frame = 0;
@@ -44,7 +46,8 @@ namespace Floodlight {
 		std::vector<ID3D12Fence*> Fences;
 		std::vector<uint64> FenceValues;
 
-		std::vector<std::vector<Texture2D*>> Texture2DDeletionQueue;
+		std::vector<std::vector<Texture2D*>> Texture2DDestructionQueue;
+		std::vector<std::vector<GPUResource*>> GPUResourceDecrementQueue;
 	};
 
 }

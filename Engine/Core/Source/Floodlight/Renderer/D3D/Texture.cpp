@@ -86,18 +86,16 @@ namespace Floodlight {
 		StagingDesc.Height = TexDesc.Height;
 		StagingDesc.Format = TexDesc.Format;
 		StagingDesc.Flags = TextureFlag_Staging;
-		Texture2D* TempTexture = new Texture2D(StagingDesc);
+		Texture2D* StagingTexture = new Texture2D(StagingDesc);
 
 		// Upload the data to the staging texture
 		void* MappedData = nullptr;
 		D3D12_RANGE Range = {};
-		TempTexture->Resource->Raw()->Map(0, &Range, &MappedData);
+		StagingTexture->Resource->Raw()->Map(0, &Range, &MappedData);
 		memcpy(MappedData, Data, SizeBytes);
-		TempTexture->Resource->Raw()->Unmap(0, nullptr);
+		StagingTexture->Resource->Raw()->Unmap(0, nullptr);
 
-		// Do a GPU copy to copy the contents to THIS texture.
-		D3D12_TEXTURE_COPY_LOCATION DestLoc = CreateTextureCopyLocation(Resource->Raw(), 0);
-
+		// Get the footprint of the staging texture to copy
 		D3D12_PLACED_SUBRESOURCE_FOOTPRINT Footprint = {};
 		Footprint.Offset = 0;
 		Footprint.Footprint.Format = (DXGI_FORMAT)TexDesc.Format;
@@ -106,12 +104,15 @@ namespace Floodlight {
 		Footprint.Footprint.Depth = 1;
 		Footprint.Footprint.RowPitch = TexDesc.Width * TextureFormatBPP(TexDesc.Format);
 
-		D3D12_TEXTURE_COPY_LOCATION SrcLoc = CreateTextureCopyLocation(TempTexture->Resource->Raw(), Footprint);
+		// Fill copy location information
+		D3D12_TEXTURE_COPY_LOCATION SrcLoc = CreateTextureCopyLocation(StagingTexture->Resource->Raw(), Footprint);
+		D3D12_TEXTURE_COPY_LOCATION DestLoc = CreateTextureCopyLocation(Resource->Raw(), 0);
 
+		// Copy the texture
 		D3DContext::GetCommandList().Get()->CopyTextureRegion(&DestLoc, 0, 0, 0, &SrcLoc, nullptr);
 
-		// Free the staging texture
-		D3DContext::GetCommandList().DestroyTexture2D(TempTexture);
+		// Queue the destruction of the staging texture (we need to defer it until after the copy step is completed).
+		D3DContext::GetCommandList().QueueTexture2DDestruction(StagingTexture);
     }
 
 	/*
