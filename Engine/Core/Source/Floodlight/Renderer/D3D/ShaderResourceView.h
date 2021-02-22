@@ -17,7 +17,7 @@ namespace Floodlight {
 		ShaderResourceView(const ShaderResourceView&) = delete;
 		inline void operator=(const ShaderResourceView&) = delete;
 
-		static void Bind(const ShaderResourceView* SRV, uint32 Index);
+		static void Bind(const ShaderResourceView* SRV, uint32 Register);
 	private:
 		uint32 DescriptorIndex = 0;
 		GPUResource* ParentResource = nullptr;

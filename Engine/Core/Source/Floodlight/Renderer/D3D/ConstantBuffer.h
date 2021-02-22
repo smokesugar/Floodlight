@@ -34,7 +34,8 @@ namespace Floodlight {
 		inline void operator=(const ConstantBuffer&) = delete;
 
 		static void Update(ConstantBuffer* Buffer, void* Data, uint32 SizeBytes);
-		static void Bind(const ConstantBuffer* Buffer, uint32 Index);
+		static void BindVS(const ConstantBuffer* Buffer, uint32 Register);
+		static void BindPS(const ConstantBuffer* Buffer, uint32 Register);
 
 		// These functions manage the update queue.
 		static void DoUpdateQueue(uint32 FrameIndex);

@@ -2,6 +2,8 @@
 
 #include "D3DContext.h"
 
+#include "PipelineState.h"
+
 namespace Floodlight
 {
 
@@ -31,9 +33,10 @@ namespace Floodlight
 		Issue a command to bind a sampler state.
 	*/
     void
-	SamplerState::Bind(const SamplerState* Sampler, uint32 Index)
+	SamplerState::Bind(const SamplerState* Sampler, uint32 Register)
     {
 		D3D12_GPU_DESCRIPTOR_HANDLE Handle = D3DContext::GetSamplerDescriptorHeap().GetGPUHandleAtIndex(Sampler->DescriptorIndex);
-		D3DContext::GetCommandList().Get()->SetGraphicsRootDescriptorTable(Index, Handle);
+		uint32 RootSigIndex = PipelineState::GetCurrentlyBound()->GetRootSignatureIndexOfSamplerAtRegister(Register);
+		D3DContext::GetCommandList().Get()->SetGraphicsRootDescriptorTable(RootSigIndex, Handle);
     }
 }

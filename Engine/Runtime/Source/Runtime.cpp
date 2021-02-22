@@ -191,17 +191,17 @@ namespace Floodlight {
 		float AspectRatio = (float)Width / (float)Height;
 		matrix MVP = XMMatrixRotationRollPitchYaw(ToRadians(Time::GetTime() * 180.0f), ToRadians(Time::GetTime() * 90.0f), 0.0f) * XMMatrixTranslation(0.0f, 0.0f, 2.0f) * XMMatrixPerspectiveFovLH(ToRadians(80.0f), AspectRatio, 0.1f, 100.0f);
 		ConstantBuffer::Update(MVPCBO, &MVP, sizeof(MVP));
-		ConstantBuffer::Bind(MVPCBO, 0);
+		ConstantBuffer::BindVS(MVPCBO, 0);
 
 		/*
 			Bind shader resource views
 		*/
-		ShaderResourceView::Bind(SRV, 2);
+		ShaderResourceView::Bind(SRV, 0);
 
 		/*
 			Bind samplers
 		*/
-		SamplerState::Bind(Sampler, 1);
+		SamplerState::Bind(Sampler, 0);
 
 		/*
 			Bind vertices and draw.

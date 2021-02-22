@@ -3,6 +3,7 @@
 #include <unordered_map>
 
 #include "D3DContext.h"
+#include "PipelineState.h"
 
 namespace Floodlight {
 
@@ -136,12 +137,23 @@ namespace Floodlight {
 	/*
 		Issue a command to bind the constant buffer.
 	*/
-	void ConstantBuffer::Bind(const ConstantBuffer* Buffer, uint32 Index)
+
+	void ConstantBuffer::BindVS(const ConstantBuffer* Buffer, uint32 Register)
     {
 		uint32 FrameIndex = D3DContext::GetSwapChainBufferIndex();
 		uint32 DescriptorHeapIndex = Buffer->DescriptorHeapIndices[FrameIndex];
 		D3D12_GPU_DESCRIPTOR_HANDLE Handle = D3DContext::GetCBVSRVUAVDescriptorHeap().GetGPUHandleAtIndex(DescriptorHeapIndex);
-		D3DContext::GetCommandList().Get()->SetGraphicsRootDescriptorTable(Index, Handle);
+		uint32 RootSigIndex = PipelineState::GetCurrentlyBound()->GetRootSignatureIndexOfCBVAtVSRegister(Register);
+		D3DContext::GetCommandList().Get()->SetGraphicsRootDescriptorTable(RootSigIndex, Handle);
     }
+
+	void ConstantBuffer::BindPS(const ConstantBuffer* Buffer, uint32 Register)
+	{
+		uint32 FrameIndex = D3DContext::GetSwapChainBufferIndex();
+		uint32 DescriptorHeapIndex = Buffer->DescriptorHeapIndices[FrameIndex];
+		D3D12_GPU_DESCRIPTOR_HANDLE Handle = D3DContext::GetCBVSRVUAVDescriptorHeap().GetGPUHandleAtIndex(DescriptorHeapIndex);
+		uint32 RootSigIndex = PipelineState::GetCurrentlyBound()->GetRootSignatureIndexOfCBVAtPSRegister(Register);
+		D3DContext::GetCommandList().Get()->SetGraphicsRootDescriptorTable(RootSigIndex, Handle);
+	}
 
 }

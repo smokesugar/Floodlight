@@ -19,7 +19,7 @@ namespace Floodlight
 		SamplerState(const SamplerState&) = delete;
 		inline void operator=(const SamplerState&) = delete;
 
-		static void Bind(const SamplerState* Sampler, uint32 Index);
+		static void Bind(const SamplerState* Sampler, uint32 Register);
 	private:
 		uint32 DescriptorIndex = 0;
 	};

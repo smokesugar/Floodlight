@@ -7,6 +7,8 @@
 
 namespace Floodlight {
 
+	confined const PipelineState* BoundPipelineState = nullptr;
+
 	/*
 		Helper function that compiles a shader from a file path.
 	*/
@@ -135,10 +137,15 @@ namespace Floodlight {
 	}
 
 	confined D3D12_ROOT_SIGNATURE_DESC
-	ExtractRootSignature(ID3D12ShaderReflection* VSReflection, ID3D12ShaderReflection* PSReflection, std::vector<D3D12_DESCRIPTOR_RANGE>* pRanges, std::vector<D3D12_ROOT_PARAMETER>* pParameters)
+	ExtractRootSignature(ID3D12ShaderReflection* VSReflection, ID3D12ShaderReflection* PSReflection, std::vector<D3D12_DESCRIPTOR_RANGE>* pRanges, std::vector<D3D12_ROOT_PARAMETER>* pParameters, std::unordered_map<uint32, uint32>* pCBVIndicesVS, std::unordered_map<uint32, uint32>* pCBVIndicesPS, std::unordered_map<uint32, uint32>* pSRVIndices, std::unordered_map<uint32, uint32>* pSamplerIndices)
 	{
 		auto& Ranges = *pRanges;
 		auto& Parameters = *pParameters;
+
+		auto& CBVIndicesVS = *pCBVIndicesVS;
+		auto& CBVIndicesPS = *pCBVIndicesPS;
+		auto& SRVIndices = *pSRVIndices;
+		auto& SamplerIndices = *pSamplerIndices;
 
 		D3D12_SHADER_DESC VSDesc;
 		VSReflection->GetDesc(&VSDesc);
@@ -156,7 +163,28 @@ namespace Floodlight {
 			VSReflection->GetResourceBindingDesc(i, &BindDesc);
 
 			uint32 Index = i;
+
 			Ranges[Index] = ExtractRangeDesc(BindDesc);
+
+			switch (Ranges[Index].RangeType)
+			{
+				case D3D12_DESCRIPTOR_RANGE_TYPE_CBV:
+				{
+					CBVIndicesVS[BindDesc.BindPoint] = Index;
+					break;
+				}
+				case D3D12_DESCRIPTOR_RANGE_TYPE_SRV:
+				{
+					SRVIndices[BindDesc.BindPoint] = Index;
+					break;
+				}
+				case D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER:
+				{
+					SamplerIndices[BindDesc.BindPoint] = Index;
+					break;
+				}
+			}
+			
 			Parameters[Index] = ExtractRootParameter(&Ranges[Index], D3D12_SHADER_VISIBILITY_VERTEX);
 		}
 
@@ -167,6 +195,26 @@ namespace Floodlight {
 
 			uint32 Index = VSDesc.BoundResources +  i;
 			Ranges[Index] = ExtractRangeDesc(BindDesc);
+
+			switch (Ranges[Index].RangeType)
+			{
+				case D3D12_DESCRIPTOR_RANGE_TYPE_CBV:
+				{
+					CBVIndicesPS[BindDesc.BindPoint] = Index;
+					break;
+				}
+				case D3D12_DESCRIPTOR_RANGE_TYPE_SRV:
+				{
+					SRVIndices[BindDesc.BindPoint] = Index;
+					break;
+				}
+				case D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER:
+				{
+					SamplerIndices[BindDesc.BindPoint] = Index;
+					break;
+				}
+			}
+
 			Parameters[Index] = ExtractRootParameter(&Ranges[Index], D3D12_SHADER_VISIBILITY_PIXEL);
 		}
 
@@ -197,7 +245,7 @@ namespace Floodlight {
 		{ // Create the root signature
 			std::vector<D3D12_DESCRIPTOR_RANGE> Ranges;
 			std::vector<D3D12_ROOT_PARAMETER> Parameters;
-			D3D12_ROOT_SIGNATURE_DESC Desc = ExtractRootSignature(VSReflection, PSReflection, &Ranges, &Parameters);
+			D3D12_ROOT_SIGNATURE_DESC Desc = ExtractRootSignature(VSReflection, PSReflection, &Ranges, &Parameters, &CBVIndicesVS, &CBVIndicesPS, &SRVIndices, &SamplerIndices);
 
 			ID3DBlob* Blob = nullptr;
 			ID3DBlob* Error = nullptr;
@@ -281,10 +329,55 @@ namespace Floodlight {
 		RootSignature->Release();
 	}
 
-	// Bind a pipeline state
+	/*
+		The following functions are used to translate a register index into the corresponding root signature index for binding resources to the rendering pipeline.
+	*/
+
+    uint32
+	PipelineState::GetRootSignatureIndexOfCBVAtVSRegister(uint32 Register) const
+    {
+		FL_Assert(CBVIndicesVS.find(Register) != CBVIndicesVS.end(), "There is no constant buffer view at register {0} in this root signature (Vertex Shader).", Register);
+		return CBVIndicesVS.at(Register);
+    }
+
+	uint32
+	PipelineState::GetRootSignatureIndexOfCBVAtPSRegister(uint32 Register) const
+	{
+		FL_Assert(CBVIndicesPS.find(Register) != CBVIndicesPS.end(), "There is no constant buffer view at register {0} in this root signature (Pixel Shader).", Register);
+		return CBVIndicesPS.at(Register);
+	}
+
+    uint32
+	PipelineState::GetRootSignatureIndexOfSRVAtRegister(uint32 Register) const
+    {
+		FL_Assert(SRVIndices.find(Register) != SRVIndices.end(), "There is no shader resource view at register {0} in this root signature (Pixel Shader).", Register);
+		return SRVIndices.at(Register);
+    }
+
+    uint32
+	PipelineState::GetRootSignatureIndexOfSamplerAtRegister(uint32 Register) const
+    {
+		FL_Assert(SamplerIndices.find(Register) != SamplerIndices.end(), "There is no sampler at register {0} in this root signature (Pixel Shader).", Register);
+		return SamplerIndices.at(Register);
+    }
+
+	/*
+		Bound pipeline state accessor.
+	*/
+	const PipelineState*
+	PipelineState::GetCurrentlyBound()
+	{
+		FL_Assert(BoundPipelineState, "There is not currently bound Pipeline State!");
+		return BoundPipelineState;
+	}
+
+    /*
+		Bind a pipeline state and its corresponding root signature.
+	*/
 	void
 	PipelineState::Bind(const PipelineState* PS)
 	{
+		BoundPipelineState = PS;
 		D3DContext::GetCommandList().Get()->SetPipelineState(PS->PSO);
 		D3DContext::GetCommandList().Get()->SetGraphicsRootSignature(PS->RootSignature);
 	}

@@ -1,6 +1,7 @@
 #include "ShaderResourceView.h"
 
 #include "D3DContext.h"
+#include "PipelineState.h"
 
 namespace Floodlight {
 
@@ -23,10 +24,11 @@ namespace Floodlight {
 		Issue a command to bind a shader resource view.
 	*/
 	void
-	ShaderResourceView::Bind(const ShaderResourceView* SRV, uint32 Index)
+	ShaderResourceView::Bind(const ShaderResourceView* SRV, uint32 Register)
 	{
 		auto Handle = D3DContext::GetCBVSRVUAVDescriptorHeap().GetGPUHandleAtIndex(SRV->DescriptorIndex);
-		D3DContext::GetCommandList().Get()->SetGraphicsRootDescriptorTable(Index, Handle);
+		uint32 RootSigIndex = PipelineState::GetCurrentlyBound()->GetRootSignatureIndexOfSRVAtRegister(Register);
+		D3DContext::GetCommandList().Get()->SetGraphicsRootDescriptorTable(RootSigIndex, Handle);
 	}
 
 }
