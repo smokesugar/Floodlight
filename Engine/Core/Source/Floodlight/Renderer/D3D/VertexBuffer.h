@@ -23,7 +23,7 @@ namespace Floodlight {
 		inline uint32 GetNumVertices() const { return Count; }
 		inline uint32 GetNumViews() const { return Views.size(); }
 		inline const D3D12_VERTEX_BUFFER_VIEW* GetViewsPointer() const { return Views.data(); }
-		inline D3D12_VERTEX_BUFFER_VIEW GetAttributeView(uint32 Attribute) const { return Views[Attribute]; }
+		inline D3D12_VERTEX_BUFFER_VIEW GetView(uint32 Attribute) const { return Views[Attribute]; }
 
 		static void Bind(const D3D12_VERTEX_BUFFER_VIEW* Views, uint32 Count);
 	private:

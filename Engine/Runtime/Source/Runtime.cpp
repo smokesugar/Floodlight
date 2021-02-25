@@ -112,7 +112,8 @@ namespace Floodlight {
 				3*sizeof(float),
 				2*sizeof(float)
 			};
-			CubeMesh = new Submesh(new VertexBuffer(Vertices, std::size(Vertices)/5, Attributes, std::size(Attributes)), nullptr);
+
+			CubeMesh.VB = new VertexBuffer(Vertices, (uint32)std::size(Vertices)/5, Attributes, (uint32)std::size(Attributes));
 		}
 
 		{ // Create MVP constant buffer
@@ -165,7 +166,7 @@ namespace Floodlight {
 	Runtime::~Runtime()
 	{
 		delete PSO;
-		delete CubeMesh;
+		delete CubeMesh.VB;
 		delete MVPCBO;
 		delete IndirectTexture;
 		delete RTV;
@@ -241,7 +242,8 @@ namespace Floodlight {
 		/*
 			Submit draw call.
 		*/
-		CubeMesh->Draw();
+		VertexBuffer::Bind(CubeMesh.VB->GetViewsPointer(), CubeMesh.VB->GetNumViews());
+		D3DContext::GetCommandList().Get()->DrawInstanced(CubeMesh.VB->GetNumVertices(), 1, 0, 0);
 
 		// Blit to the current swap chain buffer.
 		Texture2D::Copy(BackBuffer, IndirectTexture);

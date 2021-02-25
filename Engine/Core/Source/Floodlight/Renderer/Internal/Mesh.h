@@ -6,17 +6,11 @@
 namespace Floodlight
 {
 	/*
-		The submesh class universally wraps vertex and index buffers.
+		The GPUGeometry struct pairs a vertex buffer and index buffer.
+		Note the struct does not own the pointers.
 	*/
-	class Submesh
+	struct GPUGeometry
 	{
-	public:
-		// This class owns these resources. The index buffer is optional.
-		Submesh(VertexBuffer* VertexBuf, IndexBuffer* IndexBuf);
-		~Submesh();
-
-		void Draw();
-	private:
 		VertexBuffer* VB;
 		IndexBuffer* IB;
 	};
@@ -26,7 +20,7 @@ namespace Floodlight
 	*/
 	struct Mesh
 	{
-		std::vector<Submesh*> Submeshes;
+		std::vector<GPUGeometry> Submeshes;
 
 		Mesh();
 		~Mesh();

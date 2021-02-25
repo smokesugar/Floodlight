@@ -8,37 +8,6 @@
 
 namespace Floodlight
 {
-	Submesh::Submesh(VertexBuffer* VertexBuf, IndexBuffer* IndexBuf)
-	{
-		VB = VertexBuf;
-		IB = IndexBuf;
-	}
-
-	Submesh::~Submesh()
-	{
-		delete VB;
-		if (IB) delete IB;
-	}
-
-	/*
-		Bind the resources of a submesh to the render pipeline.
-	*/
-	void
-	Submesh::Draw()
-	{
-		VertexBuffer::Bind(VB->GetViewsPointer(), VB->GetNumViews());
-
-		if (IB)
-		{
-			IndexBuffer::Bind(IB);
-			D3DContext::GetCommandList().Get()->DrawIndexedInstanced(IB->GetNumIndices(), 1, 0, 0, 0);
-		}
-		else
-		{
-			D3DContext::GetCommandList().Get()->DrawInstanced(VB->GetNumVertices(), 1, 0, 0);
-		}
-	}
-
 	/*
 		Mesh function definitions.
 	*/
@@ -51,7 +20,8 @@ namespace Floodlight
 	{
 		for (auto Ptr : Submeshes)
 		{
-			delete Ptr;
+			if (Ptr.VB) delete Ptr.VB;
+			if (Ptr.IB) delete Ptr.IB;
 		}
 	}
 

@@ -22,7 +22,7 @@ namespace Floodlight {
 		virtual void Tick() override;
 	private:
 		PipelineState* PSO = nullptr;
-		Submesh* CubeMesh = nullptr;
+		GPUGeometry CubeMesh = {};
 		ConstantBuffer* MVPCBO = nullptr;
 		Texture2D* IndirectTexture = nullptr;
 		RenderTargetView* RTV = nullptr;
