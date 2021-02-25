@@ -58,7 +58,7 @@ namespace Floodlight {
 			D3D12_INPUT_ELEMENT_DESC ElementDesc;
 			ElementDesc.SemanticName = paramDesc.SemanticName;
 			ElementDesc.SemanticIndex = paramDesc.SemanticIndex;
-			ElementDesc.InputSlot = 0;
+			ElementDesc.InputSlot = i;
 			ElementDesc.AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
 			ElementDesc.InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA;
 			ElementDesc.InstanceDataStepRate = 0;

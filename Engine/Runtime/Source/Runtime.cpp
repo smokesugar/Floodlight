@@ -8,7 +8,6 @@
 #include "Floodlight/Application/Time.h"
 
 namespace Floodlight {
-
 	
 	Runtime::Runtime()
 	{
@@ -21,62 +20,99 @@ namespace Floodlight {
 
 		{ // Create the vertex buffer
 			float Vertices[] = {
-				-0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-				 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-				 0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-				 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-				-0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-				-0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
+				-0.5f, -0.5f, -0.5f,
+				 0.5f,  0.5f, -0.5f,
+				 0.5f, -0.5f, -0.5f,
+				 0.5f,  0.5f, -0.5f,
+				-0.5f, -0.5f, -0.5f,
+				-0.5f,  0.5f, -0.5f,
 
-				-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-				 0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-				 0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-				 0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-				-0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-				-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-				
+				-0.5f, -0.5f,  0.5f,
+				 0.5f, -0.5f,  0.5f,
+				 0.5f,  0.5f,  0.5f,
+				 0.5f,  0.5f,  0.5f,
+				-0.5f,  0.5f,  0.5f,
+				-0.5f, -0.5f,  0.5f,
 
-				-0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-				-0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-				-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-				-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-				-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-				-0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
 
-				 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-				 0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-				 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-				 0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-				 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-				 0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-				
+				-0.5f,  0.5f,  0.5f,
+				-0.5f,  0.5f, -0.5f,
+				-0.5f, -0.5f, -0.5f,
+				-0.5f, -0.5f, -0.5f,
+				-0.5f, -0.5f,  0.5f,
+				-0.5f,  0.5f,  0.5f,
 
-				-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-				 0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
-				 0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-				 0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-				-0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-				-0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+				 0.5f,  0.5f,  0.5f,
+				 0.5f, -0.5f, -0.5f,
+				 0.5f,  0.5f, -0.5f,
+				 0.5f, -0.5f, -0.5f,
+				 0.5f,  0.5f,  0.5f,
+				 0.5f, -0.5f,  0.5f,
 
-				 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-				 -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-				-0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
-				-0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-				 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-				 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
+
+				-0.5f, -0.5f, -0.5f,
+				 0.5f, -0.5f, -0.5f,
+				 0.5f, -0.5f,  0.5f,
+				 0.5f, -0.5f,  0.5f,
+				-0.5f, -0.5f,  0.5f,
+				-0.5f, -0.5f, -0.5f,
+
+				 0.5f,  0.5f,  0.5f,
+				-0.5f,  0.5f, -0.5f,
+				-0.5f,  0.5f,  0.5f,
+				-0.5f,  0.5f, -0.5f,
+				 0.5f,  0.5f,  0.5f,
+				 0.5f,  0.5f, -0.5f,
+
+				 0.0f, 0.0f,
+				 1.0f, 1.0f,
+				 1.0f, 0.0f,
+				 1.0f, 1.0f,
+				 0.0f, 0.0f,
+				 0.0f, 1.0f,
+
+				 0.0f, 0.0f,
+				 1.0f, 0.0f,
+				 1.0f, 1.0f,
+				 1.0f, 1.0f,
+				 0.0f, 1.0f,
+				 0.0f, 0.0f,
+
+				 1.0f, 0.0f,
+				 1.0f, 1.0f,
+				 0.0f, 1.0f,
+				 0.0f, 1.0f,
+				 0.0f, 0.0f,
+				 1.0f, 0.0f,
+
+				 1.0f, 0.0f,
+				 0.0f, 1.0f,
+				 1.0f, 1.0f,
+				 0.0f, 1.0f,
+				 1.0f, 0.0f,
+				 0.0f, 0.0f,
+
+
+				 0.0f, 1.0f,
+				 1.0f, 1.0f,
+				 1.0f, 0.0f,
+				 1.0f, 0.0f,
+				 0.0f, 0.0f,
+				 0.0f, 1.0f,
+
+				 1.0f, 0.0f,
+				 0.0f, 1.0f,
+				 0.0f, 0.0f,
+				 0.0f, 1.0f,
+				 1.0f, 0.0f,
+				 1.0f, 1.0f,
 			};
 
-			VBO = new VertexBuffer(Vertices, sizeof(Vertices), 5 * sizeof(float));
-		}
-
-		{ // Create the index buffer
-			std::vector<uint32> Indices;
-			for (uint32 i = 0; i < 36; i++)
-			{
-				Indices.push_back(i);
-			}
-
-			IBO = new IndexBuffer(Indices.data(), Indices.size()*4);
+			uint32 Attributes[2] = {
+				3*sizeof(float),
+				2*sizeof(float)
+			};
+			CubeMesh = new Submesh(new VertexBuffer(Vertices, std::size(Vertices)/5, Attributes, std::size(Attributes)), nullptr);
 		}
 
 		{ // Create MVP constant buffer
@@ -129,8 +165,7 @@ namespace Floodlight {
 	Runtime::~Runtime()
 	{
 		delete PSO;
-		delete VBO;
-		delete IBO;
+		delete CubeMesh;
 		delete MVPCBO;
 		delete IndirectTexture;
 		delete RTV;
@@ -204,11 +239,9 @@ namespace Floodlight {
 		SamplerState::Bind(Sampler, 0);
 
 		/*
-			Bind vertices and draw.
+			Submit draw call.
 		*/
-		VertexBuffer::Bind(VBO);
-		IndexBuffer::Bind(IBO);
-		D3DContext::GetCommandList().Get()->DrawIndexedInstanced(IBO->GetCount(), 1, 0, 0, 0);
+		CubeMesh->Draw();
 
 		// Blit to the current swap chain buffer.
 		Texture2D::Copy(BackBuffer, IndirectTexture);

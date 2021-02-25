@@ -10,6 +10,7 @@
 #include "Floodlight/Renderer/D3D/DepthStencilView.h"
 #include "Floodlight/Renderer/D3D/ShaderResourceView.h"
 #include "Floodlight/Renderer/D3D/SamplerState.h"
+#include "Floodlight/Renderer/Internal/Mesh.h"
 
 namespace Floodlight {
 
@@ -21,8 +22,7 @@ namespace Floodlight {
 		virtual void Tick() override;
 	private:
 		PipelineState* PSO = nullptr;
-		VertexBuffer* VBO = nullptr;
-		IndexBuffer* IBO = nullptr;
+		Submesh* CubeMesh = nullptr;
 		ConstantBuffer* MVPCBO = nullptr;
 		Texture2D* IndirectTexture = nullptr;
 		RenderTargetView* RTV = nullptr;

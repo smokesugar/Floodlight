@@ -19,7 +19,7 @@ namespace Floodlight {
 		IndexBuffer(const IndexBuffer&) = delete;
 		inline void operator=(const IndexBuffer&) = delete;
 
-		inline uint32 GetCount() const { return Count; }
+		inline uint32 GetNumIndices() const { return Count; }
 		
 		static void Bind(const IndexBuffer* Buffer);
 	private:
