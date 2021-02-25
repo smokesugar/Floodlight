@@ -21,7 +21,7 @@ namespace Floodlight {
 		inline void operator=(const VertexBuffer&) = delete;
 
 		inline uint32 GetNumVertices() const { return Count; }
-		inline uint32 GetNumViews() const { return Views.size(); }
+		inline uint32 GetNumViews() const { return (uint32)Views.size(); }
 		inline const D3D12_VERTEX_BUFFER_VIEW* GetViewsPointer() const { return Views.data(); }
 		inline D3D12_VERTEX_BUFFER_VIEW GetView(uint32 Attribute) const { return Views[Attribute]; }
 

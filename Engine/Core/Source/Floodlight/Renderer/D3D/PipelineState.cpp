@@ -305,12 +305,19 @@ namespace Floodlight {
 			PSODesc.DepthStencilState.DepthEnable = TRUE;
 			PSODesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
 			PSODesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
-			PSODesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+
+			// Misc settings
 			PSODesc.SampleMask = UINT_MAX;
-			PSODesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-			PSODesc.NumRenderTargets = 1;
-			PSODesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 			PSODesc.SampleDesc = { 1, 0 };
+			PSODesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+			
+			PSODesc.NumRenderTargets = Desc.NumRenderTargets;
+			for (uint32 i = 0; i < Desc.NumRenderTargets; i++)
+			{
+				PSODesc.RTVFormats[i] = (DXGI_FORMAT)Desc.RTVFormats[i];
+			}
+
+			PSODesc.DSVFormat = (DXGI_FORMAT)Desc.DSVFormat;
 
 			// Create the PSO
 			D3DContext::GetDevice()->CreateGraphicsPipelineState(&PSODesc, IID_PPV_ARGS(&PSO));

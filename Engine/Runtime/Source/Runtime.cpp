@@ -15,6 +15,9 @@ namespace Floodlight {
 			PipelineStateDesc Desc = {};
 			Desc.VertexShader = L"Resources/Shaders/TestShader_v.hlsl";
 			Desc.PixelShader = L"Resources/Shaders/TestShader_p.hlsl";
+			Desc.DSVFormat = D32_FLOAT;
+			Desc.NumRenderTargets = 1;
+			Desc.RTVFormats[0] = RGBA8_UNORM;
 			PSO = new PipelineState(Desc);
 		}
 

@@ -4,6 +4,7 @@
 #include <unordered_map>
 
 #include "Floodlight/Utilities/IntTypes.h"
+#include "TextureFormats.h"
 
 namespace Floodlight {
 
@@ -11,6 +12,9 @@ namespace Floodlight {
 	{
 		const wchar_t* VertexShader;
 		const wchar_t* PixelShader;
+		TextureFormat RTVFormats[8];
+		uint32 NumRenderTargets;
+		TextureFormat DSVFormat;
 	};
 
 	/*
