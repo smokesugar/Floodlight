@@ -8,6 +8,12 @@
 #include "Floodlight/Application/Time.h"
 
 namespace Floodlight {
+
+	struct MVPConstants
+	{
+		matrix MVP;
+		matrix Model;
+	};
 	
 	Runtime::Runtime()
 	{
@@ -22,105 +28,12 @@ namespace Floodlight {
 		}
 
 		{ // Create the vertex buffer
-			float Vertices[] = {
-				-0.5f, -0.5f, -0.5f,
-				 0.5f,  0.5f, -0.5f,
-				 0.5f, -0.5f, -0.5f,
-				 0.5f,  0.5f, -0.5f,
-				-0.5f, -0.5f, -0.5f,
-				-0.5f,  0.5f, -0.5f,
+			TestMesh = LoadGLTF("Resources/Models/Sponza.gltf");
 
-				-0.5f, -0.5f,  0.5f,
-				 0.5f, -0.5f,  0.5f,
-				 0.5f,  0.5f,  0.5f,
-				 0.5f,  0.5f,  0.5f,
-				-0.5f,  0.5f,  0.5f,
-				-0.5f, -0.5f,  0.5f,
-
-
-				-0.5f,  0.5f,  0.5f,
-				-0.5f,  0.5f, -0.5f,
-				-0.5f, -0.5f, -0.5f,
-				-0.5f, -0.5f, -0.5f,
-				-0.5f, -0.5f,  0.5f,
-				-0.5f,  0.5f,  0.5f,
-
-				 0.5f,  0.5f,  0.5f,
-				 0.5f, -0.5f, -0.5f,
-				 0.5f,  0.5f, -0.5f,
-				 0.5f, -0.5f, -0.5f,
-				 0.5f,  0.5f,  0.5f,
-				 0.5f, -0.5f,  0.5f,
-
-
-				-0.5f, -0.5f, -0.5f,
-				 0.5f, -0.5f, -0.5f,
-				 0.5f, -0.5f,  0.5f,
-				 0.5f, -0.5f,  0.5f,
-				-0.5f, -0.5f,  0.5f,
-				-0.5f, -0.5f, -0.5f,
-
-				 0.5f,  0.5f,  0.5f,
-				-0.5f,  0.5f, -0.5f,
-				-0.5f,  0.5f,  0.5f,
-				-0.5f,  0.5f, -0.5f,
-				 0.5f,  0.5f,  0.5f,
-				 0.5f,  0.5f, -0.5f,
-
-				 0.0f, 0.0f,
-				 1.0f, 1.0f,
-				 1.0f, 0.0f,
-				 1.0f, 1.0f,
-				 0.0f, 0.0f,
-				 0.0f, 1.0f,
-
-				 0.0f, 0.0f,
-				 1.0f, 0.0f,
-				 1.0f, 1.0f,
-				 1.0f, 1.0f,
-				 0.0f, 1.0f,
-				 0.0f, 0.0f,
-
-				 1.0f, 0.0f,
-				 1.0f, 1.0f,
-				 0.0f, 1.0f,
-				 0.0f, 1.0f,
-				 0.0f, 0.0f,
-				 1.0f, 0.0f,
-
-				 1.0f, 0.0f,
-				 0.0f, 1.0f,
-				 1.0f, 1.0f,
-				 0.0f, 1.0f,
-				 1.0f, 0.0f,
-				 0.0f, 0.0f,
-
-
-				 0.0f, 1.0f,
-				 1.0f, 1.0f,
-				 1.0f, 0.0f,
-				 1.0f, 0.0f,
-				 0.0f, 0.0f,
-				 0.0f, 1.0f,
-
-				 1.0f, 0.0f,
-				 0.0f, 1.0f,
-				 0.0f, 0.0f,
-				 0.0f, 1.0f,
-				 1.0f, 0.0f,
-				 1.0f, 1.0f,
-			};
-
-			uint32 Attributes[2] = {
-				3*sizeof(float),
-				2*sizeof(float)
-			};
-
-			CubeMesh.VB = new VertexBuffer(Vertices, (uint32)std::size(Vertices)/5, Attributes, (uint32)std::size(Attributes));
 		}
 
 		{ // Create MVP constant buffer
-			MVPCBO = new ConstantBuffer(sizeof(matrix));
+			MVPCBO = new ConstantBuffer(sizeof(MVPConstants));
 		}
 
 		{ // Create indirect render targets
@@ -151,7 +64,7 @@ namespace Floodlight {
 			Desc.Format = RGBA8_UNORM;
 			Desc.Flags = 0;
 
-			uint8* ImageData = LoadNonNativeTexture("Resources/Textures/tyler.jpg", &Desc.Width, &Desc.Height);
+			uint8* ImageData = LoadNonNativeTexture("Resources/Textures/checkerboard.png", &Desc.Width, &Desc.Height);
 
 			Texture2D* TempTexture = new Texture2D(Desc);
 			TempTexture->UploadData(ImageData, Desc.Width*Desc.Height*TextureFormatBPP(Desc.Format));
@@ -169,7 +82,7 @@ namespace Floodlight {
 	Runtime::~Runtime()
 	{
 		delete PSO;
-		delete CubeMesh.VB;
+		delete TestMesh;
 		delete MVPCBO;
 		delete IndirectTexture;
 		delete RTV;
@@ -228,7 +141,10 @@ namespace Floodlight {
 			Update the MVP constants and bind the buffer.
 		*/
 		float AspectRatio = (float)Width / (float)Height;
-		matrix MVP = XMMatrixRotationRollPitchYaw(ToRadians(Time::GetTime() * 180.0f), ToRadians(Time::GetTime() * 90.0f), 0.0f) * XMMatrixTranslation(0.0f, 0.0f, 2.0f) * XMMatrixPerspectiveFovLH(ToRadians(80.0f), AspectRatio, 0.1f, 100.0f);
+		MVPConstants MVP;
+		MVP.Model = XMMatrixScaling(0.01f, 0.01f, 0.01f) * XMMatrixTranslation(0.0f, -2.0f, 0.0f);
+		matrix View = XMMatrixInverse(nullptr, XMMatrixRotationRollPitchYaw(ToRadians(Time::GetTime() * 100.0f), ToRadians(Time::GetTime() * 60), 0.0f));
+		MVP.MVP = MVP.Model * View * XMMatrixPerspectiveFovLH(ToRadians(80.0f), AspectRatio, 0.1f, 100.0f);
 		ConstantBuffer::Update(MVPCBO, &MVP, sizeof(MVP));
 		ConstantBuffer::BindVS(MVPCBO, 0);
 
@@ -245,8 +161,14 @@ namespace Floodlight {
 		/*
 			Submit draw call.
 		*/
-		VertexBuffer::Bind(CubeMesh.VB->GetViewsPointer(), CubeMesh.VB->GetNumViews());
-		D3DContext::GetCommandList().Get()->DrawInstanced(CubeMesh.VB->GetNumVertices(), 1, 0, 0);
+		for (uint32 i = 0; i < TestMesh->Submeshes.size(); i++)
+		{
+			auto VB = TestMesh->Submeshes[i].VB;
+			auto IB = TestMesh->Submeshes[i].IB;
+			VertexBuffer::Bind(VB->GetViewsPointer(), VB->GetNumViews());
+			IndexBuffer::Bind(IB);
+			D3DContext::GetCommandList().Get()->DrawIndexedInstanced(IB->GetNumIndices(), 1, 0, 0, 0);
+		}
 
 		// Blit to the current swap chain buffer.
 		Texture2D::Copy(BackBuffer, IndirectTexture);

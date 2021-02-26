@@ -183,10 +183,12 @@ namespace Floodlight {
 	D3DContext::Init(HWND Window)
 	{
 		{ // Enable the debug layer
+			#ifndef NDEBUG
 			ID3D12Debug* Debug = nullptr;
 			HResultCall(D3D12GetDebugInterface(IID_PPV_ARGS(&Debug)));
 			Debug->EnableDebugLayer();
 			Debug->Release();
+			#endif
 		}
 
 		{ // Create the D3D device
